@@ -1,0 +1,45 @@
+rules_version = '2';
+
+// ---------------------------------------------------------------------------
+// MediVault Cloud Storage security model
+//   /prescriptions/{userId}/{file}  - prescriptions, reports, medicine photos
+//
+// Owners can upload/delete. Caregivers can read. Uploads are capped at 10 MB
+// and restricted to images and PDFs so the bucket cannot be used as generic
+// file hosting.
+// ---------------------------------------------------------------------------
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isCaregiverOf(userId) {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && userId in firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.caregiverOf;
+    }
+
+    function validUpload() {
+      return request.resource.size < 10 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*')
+            || request.resource.contentType == 'application/pdf');
+    }
+
+    match /prescriptions/{userId}/{fileName} {
+      allow read: if isOwner(userId) || isCaregiverOf(userId);
+      allow create: if isOwner(userId) && validUpload();
+      allow update: if isOwner(userId) && validUpload();
+      allow delete: if isOwner(userId);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

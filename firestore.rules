@@ -1,0 +1,152 @@
+rules_version = '2';
+
+// ---------------------------------------------------------------------------
+// MediVault Firestore security model
+//
+//  * Every document is owned by exactly one user (`userId` field).
+//  * The owner can read and write their own records.
+//  * A caregiver (a different signed-in user explicitly invited by the owner
+//    through a one-time code) gets READ access to the owner's health records
+//    and may log doses, but can never edit or delete clinical data.
+//  * Reminders and prescriptions are written by Cloud Functions (Admin SDK,
+//    which bypasses these rules) - clients may only mark them as read.
+// ---------------------------------------------------------------------------
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function profile(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    // True when the caller is listed as a caregiver of `ownerId`.
+    function isCaregiverOf(ownerId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && ownerId in profile(request.auth.uid).get('caregiverOf', []);
+    }
+
+    // True when `uid` is someone the caller has invited as their caregiver.
+    function isMyCaregiver(uid) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && uid in profile(request.auth.uid).get('caregivers', []);
+    }
+
+    function canRead(ownerId) {
+      return isSelf(ownerId) || isCaregiverOf(ownerId);
+    }
+
+    // Fields the client is never allowed to change directly.
+    function protectedFieldsUntouched() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['userId', 'createdAt']);
+    }
+
+    // ------------------------------- users ---------------------------------
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isCaregiverOf(uid) || isMyCaregiver(uid);
+
+      allow create: if isSelf(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.caregivers == []
+        && request.resource.data.caregiverOf == [];
+
+      allow update: if isSelf(uid)
+        && request.resource.data.uid == uid
+        && !request.resource.data.diff(resource.data).affectedKeys()
+             .hasAny(['caregivers', 'caregiverOf', 'email', 'createdAt']);
+
+      allow delete: if false;
+    }
+
+    // ----------------------------- medicines -------------------------------
+    match /medicines/{medicineId} {
+      allow read: if signedIn() && canRead(resource.data.userId);
+
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.times is list
+        && request.resource.data.remainingTablets is int
+        && request.resource.data.remainingTablets >= 0;
+
+      allow update: if isSelf(resource.data.userId) && protectedFieldsUntouched();
+      allow delete: if isSelf(resource.data.userId);
+    }
+
+    // ---------------------------- appointments -----------------------------
+    match /appointments/{appointmentId} {
+      allow read: if signedIn() && canRead(resource.data.userId);
+
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.doctorName is string
+        && request.resource.data.date is timestamp;
+
+      allow update: if isSelf(resource.data.userId) && protectedFieldsUntouched();
+      allow delete: if isSelf(resource.data.userId);
+    }
+
+    // --------------------------- prescriptions -----------------------------
+    // Created only by the `onPrescriptionUploaded` Cloud Storage trigger.
+    match /prescriptions/{prescriptionId} {
+      allow read: if signedIn() && canRead(resource.data.userId);
+      allow write: if false;
+    }
+
+    // ------------------------------ reminders ------------------------------
+    // Created only by the scheduled reminder engine. The client may mark a
+    // reminder as read / dismissed and nothing else.
+    match /reminders/{reminderId} {
+      allow read: if signedIn() && canRead(resource.data.userId);
+
+      allow update: if signedIn()
+        && canRead(resource.data.userId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['read', 'readAt', 'status', 'acknowledgedBy']);
+
+      allow create, delete: if false;
+    }
+
+    // ------------------------------ dose logs ------------------------------
+    // Normally written by the `logDose` callable (transactional stock update).
+    // Direct writes are still scoped to the owner/caregiver and shaped.
+    match /doseLogs/{doseLogId} {
+      allow read: if signedIn() && canRead(resource.data.userId);
+
+      allow create, update: if signedIn()
+        && canRead(request.resource.data.userId)
+        && request.resource.data.medicineId is string
+        && request.resource.data.dateKey is string;
+
+      allow delete: if signedIn() && canRead(resource.data.userId);
+    }
+
+    // ----------------------------- mail outbox -----------------------------
+    // Demo-friendly audit trail of reminder emails. Written by Cloud Functions.
+    match /mailOutbox/{mailId} {
+      allow read: if signedIn() && resource.data.toUid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // -------------------------------- system -------------------------------
+    // Scheduler / function telemetry rendered on the "Cloud status" page.
+    match /system/{docId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
