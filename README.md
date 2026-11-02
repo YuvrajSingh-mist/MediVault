@@ -22,7 +22,7 @@ make every authoritative decision.
 | 7 | Four channels | One alert document drives an in-app toast, a desktop notification, a web push and email, so the channels cannot disagree. |
 
 Prescription upload and caregiver delegation are deployed and covered by the test suite, but are not
-reachable from the interface. See §4.6 of the report for why.
+reachable from the interface. The report explains that trade-off in §4.5.
 
 ## Cloud services
 
