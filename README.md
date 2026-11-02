@@ -19,7 +19,7 @@ make every authoritative decision.
 | 4 | Take, skip, undo | Written by a Firestore transaction, so two taps or two devices cannot move the stock counter twice. |
 | 5 | Warnings | Low stock and expiry alerts, raised by a scheduled sweep and readable in the app. |
 | 6 | Appointments | Doctor visits with a reminder 24 hours ahead. |
-| 7 | Four channels | One alert document drives an in-app toast, a desktop notification, a web push and email, so the channels cannot disagree. |
+| 7 | Four channels | One alert document drives an in-app toast, a desktop notification, a web push and an SMS, so the channels cannot disagree. |
 
 Prescription upload and caregiver delegation are deployed and covered by the test suite, but are not
 reachable from the interface. The report explains that trade-off in §4.5.
@@ -31,11 +31,11 @@ reachable from the interface. The report explains that trade-off in §4.5.
 | Firebase Hosting | Serves the built SPA from Google's CDN with HTTPS and a SPA rewrite |
 | Firebase Authentication | Google sign-in, short-lived ID tokens |
 | Cloud Firestore (Native, `asia-south1`) | System of record, plus the live channel the UI subscribes to |
-| Cloud Functions 2nd gen (Node 22, `asia-south1`) | 16 functions: callables, scheduled jobs, a Storage trigger and a health endpoint |
+| Cloud Functions 2nd gen (Node 22, `asia-south1`) | 18 functions: callables, scheduled jobs, a Storage trigger and a health endpoint |
 | Cloud Scheduler | `sweepReminders` every 5 minutes, `dailyDigest` at 08:00 UTC |
 | Cloud Storage | Private bucket for prescription files, rules-pinned to the owner |
 | Firebase Cloud Messaging | Web push for closed tabs |
-| SendGrid (optional) | Email reminders, with a Firestore outbox fallback |
+| Twilio (optional) | SMS reminders to a number verified with Firebase Auth, with a Firestore outbox fallback |
 | Cloud Logging / Monitoring | Structured JSON logs and an uptime check on `/api` |
 
 ## Repository layout
@@ -107,7 +107,8 @@ npm run emulators
 npm run dev
 ```
 
-Open <http://127.0.0.1:5173>, sign in with any email, then use **Load sample data** on the empty
+Open <http://127.0.0.1:5173>, sign in, enter a phone number on the first-run step (the emulator
+accepts any number and prints the code in its log), then use **Load sample data** on the empty
 dashboard. The sample vault is four medicines and two appointments, which is enough to see a dose, a
 refill warning and an appointment reminder.
 
@@ -135,13 +136,16 @@ Every variable is documented in [`.env.example`](.env.example) and
 | `VITE_FIREBASE_*` | `.env.local` / `.env.production` | Web SDK config from `firebase apps:sdkconfig web`. Public by design: access is controlled by Auth and rules, not by hiding these. |
 | `VITE_FIREBASE_VAPID_KEY` | same | Optional. Without it the app uses in-app and desktop alerts only. |
 | `VITE_USE_EMULATORS` | same | `true` on localhost, `false` in the deployed build. |
-| `SENDGRID_API_KEY` | Functions secret | Optional. Without it, composed email is written to `mailOutbox` with status `logged`. |
-| `MAIL_FROM` | Functions secret | Verified SendGrid sender. |
-| `APP_URL` | `functions/.env` | Public URL used in email links. |
+| `TWILIO_ACCOUNT_SID` | `functions/.env` | Optional. Without all three Twilio values, composed messages are written to `smsOutbox` with status `logged`. |
+| `TWILIO_AUTH_TOKEN` | `functions/.env` | Twilio auth token. |
+| `TWILIO_FROM` | `functions/.env` | Sending number in E.164 form, e.g. `+12025550123`. |
+| `APP_URL` | `functions/.env` | Public URL used in message links. |
 
 ```bash
-firebase functions:secrets:set SENDGRID_API_KEY
-firebase functions:secrets:set MAIL_FROM
+# functions/.env
+TWILIO_ACCOUNT_SID=AC...
+TWILIO_AUTH_TOKEN=...
+TWILIO_FROM=+1...
 ```
 
 ## Deploy to Google Cloud
@@ -187,7 +191,7 @@ medicines/{id}           name, dosage, times[], remainingTablets, refillThreshol
 appointments/{id}        doctor, speciality, location, date, status
 doseLogs/{medId_date_hhmm}   status (taken|skipped), who logged it, when
 reminders/{dedupeId}     type, title, body, dueAt, channels[]   (engine writes, owner acknowledges)
-mailOutbox/{id}          composed email, delivery status
+smsOutbox/{id}           composed text, delivery status, provider
 system/status            telemetry for the operator page
 ```
 
@@ -205,7 +209,7 @@ appt_<appointmentId>_t24
 
 - Firestore rules compare `resource.data.userId` with `request.auth.uid`. There is no branch that trusts
   a client-supplied owner.
-- `reminders`, `doseLogs` and `mailOutbox` are `allow write: if false`. Only the Admin SDK inside a
+- `reminders`, `doseLogs` and `smsOutbox` are `allow write: if false`. Only the Admin SDK inside a
   function can create them, so a browser cannot forge or replay a notification.
 - An owner may change only the acknowledgement fields on a reminder.
 - Inventory is computed inside a transaction from the previous state; the client sends an intent, never a
@@ -239,5 +243,5 @@ appt_<appointmentId>_t24
 
 ## Licence
 
-Course project, provided for academic evaluation. The deployed Firebase project, the SendGrid account and
+Course project, provided for academic evaluation. The deployed Firebase project, the Twilio account and
 the diagrams belong to the team that created them.

@@ -41,7 +41,7 @@
       ]
     },
     {
-      "collectionGroup": "mailOutbox",
+      "collectionGroup": "smsOutbox",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "toUid", "order": "ASCENDING" },

@@ -14,7 +14,7 @@ import { db } from './firebase'
 import type {
   Appointment,
   DoseLog,
-  MailOutboxItem,
+  SmsOutboxItem,
   Medicine,
   Reminder,
   SystemStatus,
@@ -246,8 +246,8 @@ export function useSystemStatus() {
   return status
 }
 
-export function useMailOutbox(uid?: string, max = 8) {
-  const [items, setItems] = useState<MailOutboxItem[] | null>(null)
+export function useSmsOutbox(uid?: string, max = 8) {
+  const [items, setItems] = useState<SmsOutboxItem[] | null>(null)
   const version = useDataVersion()
   const didTargetChange = useDidTargetChange()
 
@@ -257,16 +257,16 @@ export function useMailOutbox(uid?: string, max = 8) {
       return
     }
     if (didTargetChange(uid)) setItems(null)
-    return subscribeLive<MailOutboxItem>(
+    return subscribeLive<SmsOutboxItem>(
       () =>
         query(
-          collection(db, 'mailOutbox'),
+          collection(db, 'smsOutbox'),
           where('toUid', '==', uid),
           orderBy('createdAt', 'desc'),
           limit(max),
         ),
       setItems,
-      'mailOutbox',
+      'smsOutbox',
     )
   }, [uid, max, version])
 

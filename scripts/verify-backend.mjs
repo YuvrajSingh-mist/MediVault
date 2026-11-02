@@ -5,7 +5,7 @@
  * It exercises exactly the cloud behaviour the project is graded on:
  *   Firebase Authentication sign-up, Firestore security rules, Cloud Functions
  *   (callable + scheduled-engine logic), the Cloud Storage upload trigger,
- *   transactional inventory updates and the email outbox.
+ *   transactional inventory updates and the SMS outbox.
  *
  * Usage:
  *   npm run emulators          # in one terminal
@@ -249,6 +249,20 @@ async function main() {
   )
 
   /* ------------------------------------- Scheduled reminder engine (sweep) -- */
+  // The engine only texts a number Firebase Auth has proved, and rules forbid a
+  // client from setting that flag, so the fixture is written with the emulator's
+  // rules-bypassing admin token (the same trick used for the throttle reset).
+  await fetch(`${FS}/users/${patient.localId}?updateMask.fieldPaths=phone&updateMask.fieldPaths=phoneVerified`, {
+    method: 'PATCH',
+    headers: { Authorization: 'Bearer owner', 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      fields: {
+        phone: { stringValue: '+919876543210' },
+        phoneVerified: { booleanValue: true },
+      },
+    }),
+  })
+
   // Reset the manual-sweep throttle so repeated verification runs are identical.
   await fetch(`${FS}/system/manualSweep`, {
     method: 'DELETE',
@@ -260,7 +274,7 @@ async function main() {
   check(
     'Cloud Scheduler logic: sweep fans out dose / stock / expiry / appointment reminders',
     sweep.ok && Number(counts.createdReminders) > 0,
-    `createdReminders=${counts.createdReminders} emails=${counts.emailsSent} scans=${counts.scannedMedicines} meds`,
+    `createdReminders=${counts.createdReminders} sms=${counts.smsSent} scans=${counts.scannedMedicines} meds`,
   )
   check(
     'Cloud Function: sweep records an execution row in system/status for observability',
@@ -276,9 +290,9 @@ async function main() {
     [...kinds].join(', '),
   )
 
-  const outbox = ownedBy((await fsList('mailOutbox')).docs, patient.localId, 'toUid')
+  const outbox = ownedBy((await fsList('smsOutbox')).docs, patient.localId, 'toUid')
   check(
-    'Notification delivery: reminder emails queued in mailOutbox',
+    'Notification delivery: reminder SMS queued in smsOutbox',
     outbox.length > 0,
     `${outbox.length} queued (${str(outbox[0], 'provider')}/${str(outbox[0], 'status')})`,
   )
@@ -360,15 +374,15 @@ async function main() {
     `role=${caregiverDose.body?.role}`,
   )
 
-  /* ------------------------------------------------------- Email + health -- */
-  const mail = await call('sendTestEmail', patient.idToken)
-  check('Cloud Function sendTestEmail queues a test message', mail.ok, mail.body?.provider || mail.body?.status)
+  /* --------------------------------------------------------- SMS + health -- */
+  const sms = await call('sendTestSms', patient.idToken)
+  check('Cloud Function sendTestSms queues a test message', sms.ok, sms.body?.provider || sms.body?.status)
 
   const health = await call('cloudHealth', patient.idToken)
   check(
     'Cloud Function cloudHealth reports Firestore + runtime + bucket',
     health.ok && health.body?.firestoreOk === true && Boolean(health.body?.bucket),
-    `${health.body?.runtime} / ${health.body?.mailProvider} / ${health.body?.latencyMs}ms`,
+    `${health.body?.runtime} / ${health.body?.smsProvider} / ${health.body?.latencyMs}ms`,
   )
 
   /* ------------------------------------------------------------- Summary -- */

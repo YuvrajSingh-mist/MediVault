@@ -1,10 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { doc, updateDoc } from 'firebase/firestore'
+import type { ConfirmationResult } from 'firebase/auth'
 import { db, PROJECT_ID, USE_EMULATORS } from '../lib/firebase'
 import { useAuth } from '../context/AuthProvider'
 import { useToast } from '../context/ToastProvider'
 import { api, errorMessage } from '../lib/api'
 import { enableWebPush } from '../lib/notifications'
+import {
+  confirmPhoneCode,
+  isValidPhone,
+  prettyPhone,
+  startPhoneVerification,
+  unlinkPhone,
+} from '../lib/phone'
 import {
   alertPermission,
   requestAlertPermission,
@@ -52,9 +60,9 @@ const TIMEZONES = [
 
 const PREF_LABELS: Array<{ key: keyof NotificationPrefs; label: string; description: string }> = [
   {
-    key: 'email',
-    label: 'Email reminders',
-    description: 'One consolidated email per sweep with everything that is due. Delivered by SendGrid, or recorded in the mail outbox when no API key is set.',
+    key: 'sms',
+    label: 'SMS reminders',
+    description: 'One short text per sweep, sent to your verified number. Delivered by Twilio, or recorded in the SMS outbox when no credentials are set.',
   },
   {
     key: 'push',
@@ -87,21 +95,28 @@ export function SettingsPage() {
   const { user, profile, signOutUser } = useAuth()
   const { toast } = useToast()
   const [displayName, setDisplayName] = useState('')
-  const [phone, setPhone] = useState('')
   const [saving, setSaving] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
   const [pushMessage, setPushMessage] = useState<string | null>(null)
   const [alertState, setAlertState] = useState<AlertPermission>(() => alertPermission())
   const [alertBusy, setAlertBusy] = useState(false)
-  const [emailBusy, setEmailBusy] = useState(false)
+  const [smsBusy, setSmsBusy] = useState(false)
+
+  // Mobile number verification
+  const [phoneInput, setPhoneInput] = useState('')
+  const [phoneCode, setPhoneCode] = useState('')
+  const [phoneStage, setPhoneStage] = useState<'idle' | 'code'>('idle')
+  const [phoneBusy, setPhoneBusy] = useState(false)
+  const [confirmReplace, setConfirmReplace] = useState(false)
+  const [phoneError, setPhoneError] = useState<string | null>(null)
+  const phoneConfirmation = useRef<ConfirmationResult | null>(null)
 
   useEffect(() => {
     setDisplayName(profile?.displayName || '')
-    setPhone(profile?.phone || '')
-  }, [profile?.displayName, profile?.phone])
+  }, [profile?.displayName])
 
   const prefs: NotificationPrefs = {
-    email: true,
+    sms: true,
     push: true,
     dose: true,
     lowStock: true,
@@ -114,9 +129,10 @@ export function SettingsPage() {
     if (!profile) return
     setSaving(true)
     try {
+      // `phone` is deliberately absent: it is written by the phone-verification
+      // callables and Firestore rules reject client edits to it.
       await updateDoc(doc(db, 'users', profile.uid), {
         displayName: displayName.trim() || profile.displayName,
-        phone: phone.trim(),
       })
       toast('Profile updated.', 'success')
     } catch (err) {
@@ -184,20 +200,66 @@ export function SettingsPage() {
     }
   }
 
-  async function sendTestEmail() {
-    setEmailBusy(true)
+  async function sendTestSms() {
+    setSmsBusy(true)
     try {
-      const result = await api.sendTestEmail()
+      const result = await api.sendTestSms()
       toast(
         result.status === 'sent'
-          ? `Test email sent through ${result.provider}.`
-          : `Email composed and logged via ${result.provider} (no SendGrid key configured).`,
+          ? `Test SMS sent through ${result.provider}.`
+          : `Message composed and logged via ${result.provider} (no Twilio credentials configured).`,
         'success',
       )
     } catch (err) {
       toast(errorMessage(err), 'error')
     } finally {
-      setEmailBusy(false)
+      setSmsBusy(false)
+    }
+  }
+
+  async function sendPhoneCode(replace = false) {
+    if (!user) return
+    setPhoneError(null)
+    if (!isValidPhone(phoneInput)) {
+      setPhoneError('Enter the number in full, including the country code.')
+      return
+    }
+    // Unlinking the current number is irreversible until the new one is proved,
+    // so it only happens after an explicit second click.
+    if (user.phoneNumber && !replace) {
+      setConfirmReplace(true)
+      return
+    }
+    setPhoneBusy(true)
+    setConfirmReplace(false)
+    try {
+      if (user.phoneNumber) await unlinkPhone(user)
+      phoneConfirmation.current = await startPhoneVerification(user, phoneInput, 'settings-recaptcha')
+      setPhoneStage('code')
+      toast(`Code sent to ${prettyPhone(phoneInput)}.`, 'success')
+    } catch (err) {
+      setPhoneError(errorMessage(err))
+    } finally {
+      setPhoneBusy(false)
+    }
+  }
+
+  async function confirmPhone() {
+    if (!phoneConfirmation.current || !user) return
+    setPhoneError(null)
+    setPhoneBusy(true)
+    try {
+      await confirmPhoneCode(phoneConfirmation.current, phoneCode)
+      await user.getIdToken(true)
+      await api.syncPhone()
+      setPhoneStage('idle')
+      setPhoneInput('')
+      setPhoneCode('')
+      toast('Number verified. SMS reminders are on.', 'success')
+    } catch (err) {
+      setPhoneError(errorMessage(err))
+    } finally {
+      setPhoneBusy(false)
     }
   }
 
@@ -246,13 +308,16 @@ export function SettingsPage() {
                     onChange={(event) => setDisplayName(event.target.value)}
                   />
                 </Field>
-                <Field label="Phone" htmlFor="profile-phone" hint="Optional, for your own reference.">
-                  <Input
-                    id="profile-phone"
-                    value={phone}
-                    onChange={(event) => setPhone(event.target.value)}
-                    placeholder="+91 98765 43210"
-                  />
+                <Field
+                  label="Mobile"
+                  htmlFor="profile-phone"
+                  hint={
+                    profile?.phoneVerified
+                      ? 'Verified — SMS reminders go here.'
+                      : 'Not verified — no texts are sent yet.'
+                  }
+                >
+                  <Input id="profile-phone" value={profile?.phone ? prettyPhone(profile.phone) : 'Not set'} readOnly />
                 </Field>
                 <div className="span-2">
                   <Field
@@ -382,15 +447,106 @@ export function SettingsPage() {
           </Card>
 
           <Card>
-            <CardHead title="Email delivery" subtitle="SendGrid via Cloud Functions" />
+            <CardHead
+              title="Mobile number"
+              subtitle="Reminders are sent by SMS to this number"
+              actions={
+                <Badge tone={profile?.phoneVerified ? 'brand' : 'amber'} dot>
+                  {profile?.phoneVerified ? 'Verified' : 'Not verified'}
+                </Badge>
+              }
+            />
             <div className="card-pad">
               <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 12 }}>
-                Without a SendGrid key the function still composes the message and writes it to
-                <span className="mono"> mailOutbox</span> with status <span className="mono">logged</span>.
+                {profile?.phoneVerified
+                  ? `Texts go to ${profile.phone ? prettyPhone(profile.phone) : 'your number'}. Verifying a new one replaces it.`
+                  : 'This number is on file but unproved, so the reminder engine will not text it. Verify it to switch SMS on.'}
+              </p>
+
+              {phoneStage === 'idle' ? (
+                <>
+                  <Field label="Mobile number" htmlFor="settings-phone">
+                    <Input
+                      id="settings-phone"
+                      value={phoneInput}
+                      onChange={(event) => setPhoneInput(event.target.value)}
+                      inputMode="tel"
+                      autoComplete="tel"
+                      placeholder={profile?.phone ? prettyPhone(profile.phone) : '+91 98765 43210'}
+                    />
+                  </Field>
+                  <div id="settings-recaptcha" />
+                  <Button variant="soft" icon="phone" onClick={() => void sendPhoneCode()} loading={phoneBusy}>
+                    {profile?.phoneVerified ? 'Replace number' : 'Verify number'}
+                  </Button>
+                  {confirmReplace ? (
+                    <div style={{ marginTop: 12 }}>
+                      <AlertBox tone="warn" icon="alert">
+                        <div style={{ marginBottom: 8 }}>
+                          Sending a code removes {profile?.phone ? prettyPhone(profile.phone) : 'the current number'}{' '}
+                          from this account first. If the new number is never verified, SMS reminders stay off
+                          until you verify again.
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <Button size="sm" onClick={() => void sendPhoneCode(true)} loading={phoneBusy}>
+                            Yes, replace it
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setConfirmReplace(false)}>
+                            Keep current
+                          </Button>
+                        </div>
+                      </AlertBox>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <Field label="6-digit code" htmlFor="settings-code" hint={`Sent to ${prettyPhone(phoneInput)}.`}>
+                    <Input
+                      id="settings-code"
+                      value={phoneCode}
+                      onChange={(event) => setPhoneCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="000000"
+                      style={{ letterSpacing: '0.4em', fontFamily: 'var(--mono)' }}
+                    />
+                  </Field>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <Button icon="check" onClick={confirmPhone} loading={phoneBusy}>
+                      Confirm
+                    </Button>
+                    <Button variant="ghost" onClick={() => setPhoneStage('idle')} disabled={phoneBusy}>
+                      Cancel
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {phoneError ? (
+                <div style={{ marginTop: 12 }}>
+                  <AlertBox tone="error">{phoneError}</AlertBox>
+                </div>
+              ) : null}
+            </div>
+          </Card>
+
+          <Card>
+            <CardHead title="SMS delivery" subtitle="Twilio via Cloud Functions" />
+            <div className="card-pad">
+              <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 12 }}>
+                Without Twilio credentials the function still composes the message and writes it to
+                <span className="mono"> smsOutbox</span> with status <span className="mono">logged</span>.
                 That makes delivery demonstrable offline — and auditable in production.
               </p>
-              <Button variant="ghost" icon="mail" onClick={sendTestEmail} loading={emailBusy}>
-                Send a test email
+              <Button
+                variant="ghost"
+                icon="phone"
+                onClick={sendTestSms}
+                loading={smsBusy}
+                disabled={!profile?.phoneVerified}
+              >
+                Send a test SMS
               </Button>
             </div>
           </Card>

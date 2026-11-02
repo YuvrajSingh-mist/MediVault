@@ -57,12 +57,16 @@ service cloud.firestore {
       allow create: if isSelf(uid)
         && request.resource.data.uid == uid
         && request.resource.data.caregivers == []
-        && request.resource.data.caregiverOf == [];
+        && request.resource.data.caregiverOf == []
+        && request.resource.data.phoneVerified == false;
 
+      // `phone` and `phoneVerified` are written by Cloud Functions only, after
+      // Firebase Auth has proved the number. Letting a client set them would
+      // let anyone make the reminder engine text an arbitrary number.
       allow update: if isSelf(uid)
         && request.resource.data.uid == uid
         && !request.resource.data.diff(resource.data).affectedKeys()
-             .hasAny(['caregivers', 'caregiverOf', 'email', 'createdAt']);
+             .hasAny(['caregivers', 'caregiverOf', 'email', 'phone', 'phoneVerified', 'createdAt']);
 
       allow delete: if false;
     }

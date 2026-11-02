@@ -115,7 +115,7 @@ narration lost.
 > whenever a prescription lands in the private bucket, which triggers the indexing function.
 >
 > Data lives in **Firestore**, with binary objects in a private Storage bucket that only a trusted trigger writes metadata for. Reminders fan out through **Firebase Cloud
-> Messaging** for browser push and **SendGrid** for email — and when SendGrid is not configured,
+> Messaging** for browser push and **Twilio** for SMS — and when Twilio is not configured,
 > messages are still composed into a Firestore outbox so the pipeline stays auditable. Everything logs
 > to **Cloud Logging** and **Cloud Monitoring**, and the scheduler writes its run history back into
 > Firestore, which is what the in-app status page reads."
@@ -146,7 +146,7 @@ narration lost.
 > `userId` equals their token's uid, and reminder acknowledgement is limited to the four fields that
 > represent state, so an alert can never be rewritten into a fake one. Two collections can never be
 > written by a browser at all: `prescriptions`, which is created by the Storage trigger, and
-> `mailOutbox`, which is created by the email function.
+> `smsOutbox`, which is created by the SMS function.
 >
 > Security rules exist for Cloud Storage too: the path is `prescriptions/{userId}/file`, only that user
 > may upload, uploads are capped at ten megabytes, and only images or PDFs are accepted.
@@ -217,8 +217,8 @@ narration lost.
 
 [Settings → Website alerts → Send a test alert]
 
-> "Behind it sit the other two channels. FCM push reaches the device when the tab is closed, and email
-> goes through SendGrid — or into `mailOutbox` when no key is configured, which keeps delivery
+> "Behind it sit the other two channels. FCM push reaches the device when the tab is closed, and SMS
+> goes through Twilio — or into `smsOutbox` when no credentials are configured, which keeps delivery
 > auditable in the demo."
 
 ---
@@ -240,8 +240,8 @@ narration lost.
 
 [Point at one alert: show channels]
 
-> "Each alert records which channels were used — email, push, or in-app only. Because SendGrid is not
-> configured locally, the email is composed and written to the `mailOutbox` collection, so you can still
+> "Each alert records which channels were used — SMS, push, or in-app only. Because Twilio is not
+> configured locally, the message is composed and written to the `smsOutbox` collection, so you can still
 > audit it."
 
 [Switch the other window to the Alerts page — it updated with no reload]

@@ -4,7 +4,7 @@ Three diagrams, each stored as an editable Excalidraw file plus rendered copies.
 
 | File | Shows | Used in |
 | --- | --- | --- |
-| `system-architecture` | Deployed topology: browser, Hosting, Auth, Firestore, Cloud Functions, Scheduler, FCM/SendGrid, Storage, Logging | Report Figure 4.1 |
+| `system-architecture` | Deployed topology: browser, Hosting, Auth, Firestore, Cloud Functions, Scheduler, FCM/Twilio, Storage, Logging | Report Figure 4.1 |
 | `reminder-sweep` | The five-minute engine: scope query, four alert classes, deterministic-id dedupe, four delivery channels | Report §7.3 |
 | `data-model` | Firestore collections, ownership, and the rules that follow from `userId` | Report Figure 6.1 |
 
