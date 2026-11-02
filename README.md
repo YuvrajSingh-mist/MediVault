@@ -218,6 +218,9 @@ appt_<appointmentId>_t24
 - Input validation runs in every callable, the manual sweep is throttled to once every 20 seconds, and
   functions are capped at ten instances.
 - Credentials live in Secret Manager or in untracked env files. No key is committed to this repository.
+- The browser API key is not a secret, so it is restricted instead. It accepts only the hosted origins and
+  localhost, and only the Identity Toolkit, Secure Token, Firestore, Storage, Installations, FCM and
+  Firebase APIs. Any other site or API gets `PERMISSION_DENIED` from the key itself.
 
 ## Scripts
 
