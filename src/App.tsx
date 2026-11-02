@@ -8,9 +8,7 @@ import { LoginPage } from './pages/Login'
 import { DashboardPage } from './pages/Dashboard'
 import { MedicinesPage } from './pages/Medicines'
 import { AppointmentsPage } from './pages/Appointments'
-import { PrescriptionsPage } from './pages/Prescriptions'
 import { AlertsPage } from './pages/Alerts'
-import { CaregiverPage } from './pages/Caregiver'
 import { SettingsPage } from './pages/Settings'
 import { SystemPage } from './pages/System'
 
@@ -101,9 +99,7 @@ function Shell() {
         <Route index element={<DashboardPage />} />
         <Route path="medicines" element={<MedicinesPage />} />
         <Route path="appointments" element={<AppointmentsPage />} />
-        <Route path="prescriptions" element={<PrescriptionsPage />} />
         <Route path="alerts" element={<AlertsPage />} />
-        <Route path="caregiver" element={<CaregiverPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="system" element={<SystemPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

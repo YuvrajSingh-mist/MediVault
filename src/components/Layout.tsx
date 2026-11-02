@@ -6,6 +6,7 @@ import { longDate } from '../lib/format'
 import { USE_EMULATORS, PROJECT_ID } from '../lib/firebase'
 import { BrandMark, Icon, type IconName } from './Icons'
 import { Avatar, Badge, cx } from './ui'
+import { LiveAlerts } from './LiveAlerts'
 
 interface NavItem {
   to: string
@@ -16,7 +17,7 @@ interface NavItem {
 }
 
 export function Layout() {
-  const { user, profile, patients, activeUserId, setActiveUserId, isCaregiverView, signOutUser } = useAuth()
+  const { user, profile, activeUserId, signOutUser } = useAuth()
   const now = useNow(60_000)
   const reminders = useReminders(activeUserId)
   const unread = useUnreadCount(reminders)
@@ -36,17 +37,12 @@ export function Layout() {
     { to: '/', label: 'Dashboard', icon: 'dashboard', end: true },
     { to: '/medicines', label: 'Medicines', icon: 'pill' },
     { to: '/appointments', label: 'Appointments', icon: 'calendar' },
-    { to: '/prescriptions', label: 'Prescriptions', icon: 'file' },
     { to: '/alerts', label: 'Alerts', icon: 'bell', badge: unread },
   ]
 
   const secondary: NavItem[] = [
-    { to: '/caregiver', label: 'Care circle', icon: 'users' },
     { to: '/settings', label: 'Settings', icon: 'settings' },
-    { to: '/system', label: 'Cloud status', icon: 'cloud' },
   ]
-
-  const activePatient = patients.find((patient) => patient.uid === activeUserId)
 
   return (
     <div className="app-shell">
@@ -110,24 +106,6 @@ export function Layout() {
           </div>
 
           <div className="topbar-actions">
-            {patients.length > 0 ? (
-              <label className="patient-switch">
-                <span>Viewing</span>
-                <select
-                  value={activeUserId}
-                  onChange={(event) => setActiveUserId(event.target.value)}
-                  aria-label="Choose whose records to view"
-                >
-                  <option value={user?.uid}>Myself</option>
-                  {patients.map((patient) => (
-                    <option key={patient.uid} value={patient.uid}>
-                      {patient.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-
             <Link to="/alerts" className="icon-btn" aria-label={`Alerts${unread ? `, ${unread} unread` : ''}`}>
               <Icon name="bell" size={18} />
               {unread > 0 ? <span className="dot" /> : null}
@@ -159,12 +137,6 @@ export function Layout() {
                   <Link to="/settings" className="menu-item" onClick={() => setMenuOpen(false)} role="menuitem">
                     <Icon name="user" size={16} /> Profile &amp; preferences
                   </Link>
-                  <Link to="/caregiver" className="menu-item" onClick={() => setMenuOpen(false)} role="menuitem">
-                    <Icon name="users" size={16} /> Care circle
-                  </Link>
-                  <Link to="/system" className="menu-item" onClick={() => setMenuOpen(false)} role="menuitem">
-                    <Icon name="cloud" size={16} /> Cloud status
-                  </Link>
                   <button
                     type="button"
                     className="menu-item danger"
@@ -182,18 +154,8 @@ export function Layout() {
           </div>
         </header>
 
-        {isCaregiverView ? (
-          <div className="alert-box info" style={{ marginTop: 14 }}>
-            <Icon name="shield" size={15} />
-            <div>
-              You are viewing <strong>{activePatient?.name || 'a patient'}</strong>&apos;s records as a
-              caregiver. You can log doses, but clinical records stay read-only — only the patient can
-              edit them.
-            </div>
-          </div>
-        ) : null}
-
         <Outlet />
+        <LiveAlerts />
       </main>
     </div>
   )

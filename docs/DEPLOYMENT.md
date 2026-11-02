@@ -1,0 +1,163 @@
+# MediVault — deployment runbook
+
+Everything below was executed to produce the live instance:
+
+| | |
+|---|---|
+| App URL | **https://medivault-gcp-23875.web.app** |
+| Firebase / GCP project | `medivault-gcp-23875` |
+| Project number | `686331285299` |
+| Billing | Blaze (pay as you go), billing account linked |
+| Firestore | Native mode, `asia-south1` |
+| Cloud Storage | `medivault-gcp-23875-files`, `asia-south1` |
+| Cloud Functions | 2nd gen, `nodejs22`, `asia-south1`, 256 MiB, `maxInstances: 10` |
+| Cloud Scheduler | `sweepReminders` every 5 minutes · `dailyDigest` `0 8 * * *` |
+| Web app id | `1:686331285299:web:fd91bf73faf40de681f846` |
+
+---
+
+## 1. One-time setup that was done from the CLI
+
+```bash
+PROJ=medivault-gcp-23875
+
+gcloud projects create "$PROJ" --name="MediVault"
+gcloud billing projects link "$PROJ" --billing-account=<BILLING_ACCOUNT_ID>
+
+gcloud services enable \
+  firebase.googleapis.com firebasehosting.googleapis.com firebaserules.googleapis.com \
+  identitytoolkit.googleapis.com securetoken.googleapis.com \
+  firestore.googleapis.com storage.googleapis.com storage-api.googleapis.com \
+  cloudfunctions.googleapis.com cloudbuild.googleapis.com run.googleapis.com \
+  eventarc.googleapis.com pubsub.googleapis.com cloudscheduler.googleapis.com \
+  artifactregistry.googleapis.com runtimeconfig.googleapis.com \
+  cloudresourcemanager.googleapis.com iam.googleapis.com serviceusage.googleapis.com \
+  logging.googleapis.com monitoring.googleapis.com --project="$PROJ"
+
+# Register Firebase resources on the GCP project
+GOOGLE_APPLICATION_CREDENTIALS=~/.config/medivault/deployer.json \
+  npx firebase-tools projects:addfirebase "$PROJ"
+
+gcloud firestore databases create --project="$PROJ" \
+  --location=asia-south1 --type=firestore-native
+
+gcloud storage buckets create "gs://$PROJ-files" --project="$PROJ" \
+  --location=asia-south1 --uniform-bucket-level-access
+
+# Web app + SDK config
+npx firebase-tools apps:create WEB "MediVault Web" --project="$PROJ"
+npx firebase-tools apps:sdkconfig WEB 1:686331285299:web:fd91bf73faf40de681f846 --project="$PROJ"
+```
+
+Non-interactive deploys run with a dedicated service account instead of an interactive
+`firebase login`:
+
+```bash
+gcloud iam service-accounts create medivault-deployer --project="$PROJ"
+gcloud projects add-iam-policy-binding "$PROJ" \
+  --member="serviceAccount:medivault-deployer@$PROJ.iam.gserviceaccount.com" --role="roles/owner"
+gcloud iam service-accounts keys create ~/.config/medivault/deployer.json \
+  --iam-account="medivault-deployer@$PROJ.iam.gserviceaccount.com" --project="$PROJ"
+
+export GOOGLE_APPLICATION_CREDENTIALS=~/.config/medivault/deployer.json
+```
+
+`firebase-tools` picks the key up through Application Default Credentials, so `firebase deploy`
+works headlessly.
+
+---
+
+## 2. Two console clicks that cannot be done over the API
+
+Both are Firebase-console-only operations (no public API exists for them). After they are done the
+deployed app is fully functional; nothing needs redeploying for the Google one.
+
+1. **Enable Google as the sign-in provider**
+   <https://console.firebase.google.com/project/medivault-gcp-23875/authentication/providers>
+   → *Sign-in method* → **Google** → toggle **Enable** → pick a support email → **Save**.
+   This creates the OAuth web client that the handler at
+   `medivault-gcp-23875.firebaseapp.com/__/auth/handler` needs. Email/password stays **disabled** —
+   Google is the only method.
+
+2. **Provision Cloud Storage for Firebase**
+   <https://console.firebase.google.com/project/medivault-gcp-23875/storage>
+   → **Get started** (default bucket, `asia-south1`).
+   This creates the `service-686331285299@gcp-sa-firebasestorage` service agent that the
+   `firebasestorage.googleapis.com` gateway needs; without it every upload returns
+   `412 A required service account is missing necessary permissions`.
+
+After step 2, if the console creates the bucket as `<project>.firebasestorage.app`, update
+`.env.production` / `functions/.env` / `firebase.json` `storage.bucket` to that name and redeploy
+(`npm run deploy`), or keep the pre-created `medivault-gcp-23875-files` bucket and simply deploy the
+storage rules:
+
+```bash
+firebase deploy --only storage --project medivault-gcp-23875
+```
+
+---
+
+## 3. Shipping a build
+
+```bash
+npm run build                 # tsc --noEmit + vite build (uses .env.production)
+firebase deploy --project medivault-gcp-23875
+```
+
+What gets deployed:
+
+| Target | Content |
+|---|---|
+| `hosting` | `dist/` with SPA rewrites, long-cache hashed assets, no-cache `index.html` |
+| `functions` | 16 callables/triggers, `asia-south1`, Node 22 |
+| `firestore` | `firestore.rules` + composite indexes |
+| `storage` | `storage.rules` for the prescription bucket |
+
+Artifact Registry cleanup policy is set to keep 3 days of container images
+(`firebase functions:artifacts:setpolicy --location=asia-south1 --days=3`), which keeps the monthly
+bill at the free-tier end.
+
+---
+
+## 4. Verifying the live deployment
+
+```bash
+npm run verify:deployed
+```
+
+`scripts/verify-deployed.mjs` runs 25 assertions against the real project — no emulator involved:
+
+* Firebase Hosting serves the SPA over HTTPS and the bundle is wired to `medivault-gcp-23875`.
+* Identity Toolkit issues ID tokens for two accounts.
+* The Cloud Run HTTP endpoint `api` reports `status: ok` with Firestore reachable.
+* `ensureUserProfile` provisions `users/{uid}`, and rules let the owner read it.
+* `seedDemoData` writes 4 medicines + 2 appointments; Atorvastatin lands below its refill threshold.
+* Rules deny a stranger (403), deny an unfiltered collection scan (403), deny anonymous (401).
+* `runReminderSweepNow` raises reminders, writes `system/status` telemetry.
+* `logDose` decrements stock transactionally, is idempotent, and undo restores it.
+* Caregiver code generation + redemption links the pair; rules then grant read and still deny writes.
+* Cloud Storage accepts an owner PDF, the storage trigger indexes it into Firestore, and a
+  `text/plain` upload is rejected.
+* `cloudHealth` reports `nodejs22 · asia-south1 · <bucket>`.
+
+> The script signs in with email/password through the Identity Toolkit REST API. That provider is
+> **disabled** on the project (Google only), so temporarily enable it for a verification run and
+> disable it again afterwards. The browser app never offers anything but Google.
+
+---
+
+## 5. Cost shape
+
+Free-tier eligibility plus the cheap choices keep this near zero for a course demo:
+
+| Service | Setting | Effect |
+|---|---|---|
+| Cloud Functions | 256 MiB, `maxInstances: 10`, 2nd gen | scale-to-zero, no idle container cost |
+| Cloud Scheduler | 2 jobs | first 3 jobs free per month |
+| Firestore | Native, on-demand | 50k reads / 20k writes per day free |
+| Cloud Storage | `asia-south1`, standard | 5 GB free, `10 MB` per-file cap in rules |
+| Firebase Hosting | global CDN | 10 GB storage + 360 MB/day egress free |
+| Artifact Registry | 3-day cleanup policy | images do not accumulate |
+
+Set a budget alert on the billing account (Billing → Budgets & alerts) so a runaway demo cannot cost
+more than a coffee.

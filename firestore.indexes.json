@@ -41,9 +41,12 @@
       ]
     },
     {
-      "collectionGroup": "medicines",
+      "collectionGroup": "mailOutbox",
       "queryScope": "COLLECTION",
-      "fields": [{ "fieldPath": "active", "order": "ASCENDING" }]
+      "fields": [
+        { "fieldPath": "toUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

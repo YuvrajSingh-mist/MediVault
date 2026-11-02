@@ -3,7 +3,8 @@ import { doc, serverTimestamp, writeBatch } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthProvider'
 import { useToast } from '../context/ToastProvider'
-import { useReminders, useUnreadCount } from '../lib/data'
+import { refreshData, useReminders, useUnreadCount } from '../lib/data'
+import { alertPermission, requestAlertPermission } from '../lib/alerts'
 import { api, errorMessage } from '../lib/api'
 import { formatDateTime, relativeTime } from '../lib/format'
 import type { Reminder, ReminderType } from '../types'
@@ -31,13 +32,20 @@ const TYPE_META: Record<ReminderType, { label: string; icon: 'pill' | 'alert' | 
 type Filter = 'all' | 'unread' | 'dose' | 'lowstock' | 'expiry' | 'appointment'
 
 export function AlertsPage() {
-  const { activeUserId, isCaregiverView } = useAuth()
+  const { activeUserId } = useAuth()
   const { toast } = useToast()
   const reminders = useReminders(activeUserId, 80)
   const unread = useUnreadCount(reminders)
   const [filter, setFilter] = useState<Filter>('all')
   const [sweeping, setSweeping] = useState(false)
   const [marking, setMarking] = useState(false)
+  const [alertsOn, setAlertsOn] = useState(() => alertPermission() === 'granted')
+
+  async function enableAlerts() {
+    const result = await requestAlertPermission()
+    setAlertsOn(result.permission === 'granted')
+    toast(result.message, result.permission === 'granted' ? 'success' : 'error')
+  }
 
   const filtered = useMemo(() => {
     const list = reminders || []
@@ -78,6 +86,7 @@ export function AlertsPage() {
     setSweeping(true)
     try {
       const summary = await api.runSweepNow()
+      refreshData()
       toast(
         summary.createdReminders > 0
           ? `Sweep done · ${summary.createdReminders} new alert(s) in ${summary.durationMs} ms.`
@@ -110,6 +119,11 @@ export function AlertsPage() {
         subtitle="Every alert is produced by the reminder engine and stored in Firestore — email and push delivery channels are recorded on each document."
         actions={
           <>
+            {!alertsOn ? (
+              <Button variant="ghost" icon="bell" onClick={enableAlerts}>
+                Enable website alerts
+              </Button>
+            ) : null}
             <Button
               variant="ghost"
               icon="check"
@@ -119,11 +133,9 @@ export function AlertsPage() {
             >
               Mark all read
             </Button>
-            {!isCaregiverView ? (
-              <Button icon="refresh" onClick={runSweep} loading={sweeping}>
-                Run sweep
-              </Button>
-            ) : null}
+            <Button icon="refresh" onClick={runSweep} loading={sweeping}>
+              Run sweep
+            </Button>
           </>
         }
       />
@@ -178,7 +190,7 @@ export function AlertsPage() {
                 : 'Try another filter, or mark alerts as read to clear this view.'
             }
             action={
-              !isCaregiverView && counts.all === 0 ? (
+              counts.all === 0 ? (
                 <Button icon="refresh" variant="soft" size="sm" onClick={runSweep} loading={sweeping}>
                   Run a sweep now
                 </Button>

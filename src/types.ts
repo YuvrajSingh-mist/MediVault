@@ -18,9 +18,6 @@ export interface UserProfile {
   photoURL?: string
   phone?: string
   timezone: string
-  caregiverCode?: string | null
-  caregivers?: string[]
-  caregiverOf?: string[]
   prefs?: Partial<NotificationPrefs>
   fcmTokens?: string[]
   createdAt?: Timestamp
@@ -54,19 +51,6 @@ export interface Appointment {
   notes?: string
   status?: string
   createdAt?: Timestamp
-}
-
-export interface Prescription {
-  id: string
-  userId: string
-  storagePath: string
-  fileName: string
-  contentType: string
-  size: number
-  kind?: string
-  notes?: string
-  uploadedAt?: Timestamp
-  bucket?: string
 }
 
 export type ReminderType = 'dose' | 'lowstock' | 'expiry' | 'appointment' | 'digest' | 'system'
@@ -157,12 +141,6 @@ export interface CloudHealth {
   mailProvider: string
   sweepWindowMinutes: number
   time: string
-}
-
-export interface PatientOption {
-  uid: string
-  name: string
-  email: string
 }
 
 /** A single computed dose slot for the day. */

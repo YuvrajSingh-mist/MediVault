@@ -1,18 +1,37 @@
 node_modules
 dist
 dist-ssr
+
+# Local and production configuration. Only the example files are tracked.
 .env
 .env.local
 .env.*.local
+.env.production
+.env.*.production
+.env.development
 functions/.env
 functions/.env.*
 !.env.example
 !functions/.env.example
+
+# Firebase CLI cache, emulator state and debug logs
+.firebase/
 firebase-debug.log
 firestore-debug.log
+database-debug.log
 ui-debug.log
 .emulator-data
+
+# Editor and OS noise
 .DS_Store
 *.local
 .vscode/*
 !.vscode/extensions.json
+
+# Report build intermediates (the compiled deliverable is tracked)
+docs/report/main.pdf
+docs/report/main.log
+docs/report/main.lot
+docs/report/main.out
+docs/report/*.aux
+docs/report/*.toc

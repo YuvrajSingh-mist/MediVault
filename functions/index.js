@@ -20,13 +20,20 @@ const db = getFirestore()
 db.settings({ ignoreUndefinedProperties: true })
 
 setGlobalOptions({
-  region: 'us-central1',
+  region: 'asia-south1',
   memory: '256MiB',
   maxInstances: 10,
 })
 
-const REGION = 'us-central1'
+const REGION = 'asia-south1'
 const APP_URL = process.env.APP_URL || 'http://localhost:5173'
+/**
+ * Cloud Storage bucket used for prescriptions. Set explicitly (functions/.env
+ * -> STORAGE_BUCKET) so the storage trigger and the health check always agree
+ * with the bucket the web app uploads to, instead of relying on the project's
+ * default bucket.
+ */
+const STORAGE_BUCKET = process.env.STORAGE_BUCKET || undefined
 const DEFAULT_PREFS = {
   email: true,
   push: true,
@@ -85,7 +92,7 @@ exports.dailyDigest = onSchedule(
  * metadata that the UI reads is produced by this trusted backend.
  */
 exports.onPrescriptionUploaded = onObjectFinalized(
-  { memory: '256MiB', timeoutSeconds: 120 },
+  { bucket: STORAGE_BUCKET, memory: '256MiB', timeoutSeconds: 120 },
   async (event) => {
     const object = event.data
     const filePath = object.name || ''
@@ -525,13 +532,18 @@ exports.redeemCaregiverCode = onCall({ cors: true }, async (request) => {
 
   await db.runTransaction(async (tx) => {
     const [ownerSnap, selfSnap] = await Promise.all([tx.get(ownerRef), tx.get(selfRef)])
+    if (!ownerSnap.exists) {
+      throw new HttpsError('not-found', 'That patient profile no longer exists.')
+    }
     const caregivers = ownerSnap.get('caregivers') || []
     if (caregivers.includes(uid)) return
     if (caregivers.length >= 10) {
       throw new HttpsError('resource-exhausted', 'This patient already has 10 caregivers.')
     }
-    tx.update(ownerRef, { caregivers: FieldValue.arrayUnion(uid) })
-    tx.update(selfRef, { caregiverOf: FieldValue.arrayUnion(ownerId) })
+    tx.set(ownerRef, { caregivers: FieldValue.arrayUnion(uid) }, { merge: true })
+    // merge:true keeps this working even if the caller has not signed in through
+    // the app yet (their profile document is created by ensureUserProfile).
+    tx.set(selfRef, { caregiverOf: FieldValue.arrayUnion(ownerId) }, { merge: true })
     void selfSnap
   })
 
@@ -558,7 +570,7 @@ exports.removeCaregiver = onCall({ cors: true }, async (request) => {
       throw new HttpsError('not-found', 'That caregiver is not linked to your account.')
     }
     tx.update(ownerRef, { caregivers: FieldValue.arrayRemove(caregiverUid) })
-    tx.update(caregiverRef, { caregiverOf: FieldValue.arrayRemove(uid) })
+    tx.set(caregiverRef, { caregiverOf: FieldValue.arrayRemove(uid) }, { merge: true })
   })
 
   logger.info('caregiver.removed', { ownerId: uid, caregiverUid })
@@ -578,7 +590,7 @@ exports.leaveCaregiver = onCall({ cors: true }, async (request) => {
       throw new HttpsError('not-found', 'You are not linked to this patient.')
     }
     tx.update(ownerRef, { caregivers: FieldValue.arrayRemove(uid) })
-    tx.update(db.doc(`users/${uid}`), { caregiverOf: FieldValue.arrayRemove(ownerId) })
+    tx.set(db.doc(`users/${uid}`), { caregiverOf: FieldValue.arrayRemove(ownerId) }, { merge: true })
   })
 
   logger.info('caregiver.left', { ownerId, caregiverUid: uid })
@@ -662,11 +674,13 @@ exports.cloudHealth = onCall({ cors: true }, async (request) => {
     logger.warn('cloudHealth.firestore_failed', { error: String(err) })
   }
 
-  let bucket = null
-  try {
-    bucket = getStorage().bucket().name
-  } catch (err) {
-    void err
+  let bucket = STORAGE_BUCKET || null
+  if (!bucket) {
+    try {
+      bucket = getStorage().bucket().name
+    } catch (err) {
+      void err
+    }
   }
 
   return {

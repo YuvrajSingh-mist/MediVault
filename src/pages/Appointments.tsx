@@ -40,7 +40,7 @@ import {
 } from '../components/ui'
 
 export function AppointmentsPage() {
-  const { activeUserId, profile, isCaregiverView } = useAuth()
+  const { activeUserId, profile } = useAuth()
   const { toast } = useToast()
   const appointments = useAppointments(activeUserId)
   const now = useNow(60_000)
@@ -79,11 +79,9 @@ export function AppointmentsPage() {
         title="Appointments"
         subtitle="Doctor visits get a reminder 24 hours before, delivered by email and push."
         actions={
-          !isCaregiverView ? (
-            <Button icon="plus" onClick={() => setCreating(true)}>
-              Add appointment
-            </Button>
-          ) : undefined
+          <Button icon="plus" onClick={() => setCreating(true)}>
+            Add appointment
+          </Button>
         }
       />
 
@@ -103,17 +101,11 @@ export function AppointmentsPage() {
             <EmptyState
               icon="calendar"
               title="No upcoming appointments"
-              message={
-                isCaregiverView
-                  ? 'This patient has no upcoming visits recorded.'
-                  : 'Add a visit with a date and time — MediVault will remind you the day before.'
-              }
+              message="Add a visit with a date and time — MediVault will remind you the day before."
               action={
-                !isCaregiverView ? (
-                  <Button icon="plus" variant="soft" size="sm" onClick={() => setCreating(true)}>
-                    Add appointment
-                  </Button>
-                ) : null
+                <Button icon="plus" variant="soft" size="sm" onClick={() => setCreating(true)}>
+                  Add appointment
+                </Button>
               }
             />
           ) : (
@@ -123,7 +115,7 @@ export function AppointmentsPage() {
                   key={appointment.id}
                   appointment={appointment}
                   zone={zone}
-                  onDelete={isCaregiverView ? undefined : setDeleteTarget}
+                  onDelete={setDeleteTarget}
                 />
               ))}
             </div>
@@ -140,53 +132,47 @@ export function AppointmentsPage() {
                   appointment={appointment}
                   zone={zone}
                   muted
-                  onDelete={isCaregiverView ? undefined : setDeleteTarget}
+                  onDelete={setDeleteTarget}
                 />
               ))}
             </div>
           </Card>
         ) : null}
 
-        {!isCaregiverView ? (
-          <Card className="card-pad" style={{ background: 'var(--surface-2)' }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-              <div className="service-icon">
-                <Icon name="bell" size={15} />
-              </div>
-              <div style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.6 }}>
-                <strong style={{ color: 'var(--ink)' }}>How the reminder works.</strong> The
-                five-minute sweep looks for appointments inside the next 24 hours and creates one
-                idempotent alert (<span className="mono">appt_&lt;id&gt;_t24</span>), so repeated
-                scheduler runs never duplicate a notification.
-              </div>
+        <Card className="card-pad" style={{ background: 'var(--surface-2)' }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <div className="service-icon">
+              <Icon name="bell" size={15} />
             </div>
-          </Card>
-        ) : null}
+            <div style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.6 }}>
+              <strong style={{ color: 'var(--ink)' }}>How the reminder works.</strong> The
+              five-minute sweep looks for appointments inside the next 24 hours and creates one
+              idempotent alert (<span className="mono">appt_&lt;id&gt;_t24</span>), so repeated
+              scheduler runs never duplicate a notification.
+            </div>
+          </div>
+        </Card>
       </div>
 
-      {!isCaregiverView ? (
-        <>
-          <AppointmentForm
-            open={creating}
-            userId={activeUserId}
-            onClose={() => setCreating(false)}
-            onSaved={() => {
-              toast('Appointment saved. A reminder will go out 24 hours before.', 'success')
-              setCreating(false)
-            }}
-          />
-          <ConfirmDialog
-            open={Boolean(deleteTarget)}
-            title="Delete this appointment?"
-            message={`${deleteTarget?.doctorName || 'This visit'} on ${
-              deleteTarget ? formatDate(deleteTarget.date, zone) : ''
-            } will be removed from Firestore.`}
-            loading={deleting}
-            onCancel={() => setDeleteTarget(null)}
-            onConfirm={remove}
-          />
-        </>
-      ) : null}
+      <AppointmentForm
+        open={creating}
+        userId={activeUserId}
+        onClose={() => setCreating(false)}
+        onSaved={() => {
+          toast('Appointment saved. A reminder will go out 24 hours before.', 'success')
+          setCreating(false)
+        }}
+      />
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete this appointment?"
+        message={`${deleteTarget?.doctorName || 'This visit'} on ${
+          deleteTarget ? formatDate(deleteTarget.date, zone) : ''
+        } will be removed from Firestore.`}
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={remove}
+      />
     </>
   )
 }

@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { doc, updateDoc } from 'firebase/firestore'
 import { db, PROJECT_ID, USE_EMULATORS } from '../lib/firebase'
 import { useAuth } from '../context/AuthProvider'
 import { useToast } from '../context/ToastProvider'
 import { api, errorMessage } from '../lib/api'
 import { enableWebPush } from '../lib/notifications'
+import {
+  alertPermission,
+  requestAlertPermission,
+  showBrowserAlert,
+  type AlertPermission,
+} from '../lib/alerts'
 import { formatDate } from '../lib/format'
 import type { NotificationPrefs } from '../types'
-import { Icon } from '../components/Icons'
 import {
   AlertBox,
   Avatar,
@@ -87,6 +91,8 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
   const [pushMessage, setPushMessage] = useState<string | null>(null)
+  const [alertState, setAlertState] = useState<AlertPermission>(() => alertPermission())
+  const [alertBusy, setAlertBusy] = useState(false)
   const [emailBusy, setEmailBusy] = useState(false)
 
   useEffect(() => {
@@ -137,6 +143,25 @@ export function SettingsPage() {
     } catch (err) {
       toast(errorMessage(err), 'error')
     }
+  }
+
+  async function enableWebsiteAlerts() {
+    setAlertBusy(true)
+    try {
+      const result = await requestAlertPermission()
+      setAlertState(result.permission)
+      toast(result.message, result.permission === 'granted' ? 'success' : 'error')
+    } finally {
+      setAlertBusy(false)
+    }
+  }
+
+  async function sendTestAlert() {
+    const shown = showBrowserAlert('MediVault · test alert', 'Website alerts are working on this device.', {
+      tag: 'medivault-test',
+    })
+    if (shown) toast('Sent — check your desktop notifications.', 'success')
+    else toast('Enable website alerts first.', 'error')
   }
 
   async function enablePush() {
@@ -221,7 +246,7 @@ export function SettingsPage() {
                     onChange={(event) => setDisplayName(event.target.value)}
                   />
                 </Field>
-                <Field label="Phone" htmlFor="profile-phone" hint="Optional, shown to your caregivers.">
+                <Field label="Phone" htmlFor="profile-phone" hint="Optional, for your own reference.">
                   <Input
                     id="profile-phone"
                     value={phone}
@@ -279,6 +304,53 @@ export function SettingsPage() {
 
         <div className="grid" style={{ gap: 16 }}>
           <Card>
+            <CardHead
+              title="Website alerts"
+              subtitle="In-app toasts and desktop notifications — no key required"
+            />
+            <div className="card-pad">
+              <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 12 }}>
+                The app watches your own <span className="mono">reminders</span> collection live, so a
+                sweep wakes the page instantly. Allow notifications to also get a desktop pop-up while
+                the tab is in the background.
+              </p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <Button
+                  variant="soft"
+                  icon="bell"
+                  onClick={enableWebsiteAlerts}
+                  loading={alertBusy}
+                  disabled={alertState === 'granted' || alertState === 'unsupported'}
+                >
+                  {alertState === 'granted' ? 'Enabled on this browser' : 'Enable website alerts'}
+                </Button>
+                <Button variant="ghost" icon="mail" onClick={sendTestAlert} disabled={alertState !== 'granted'}>
+                  Send a test alert
+                </Button>
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <Badge tone={alertState === 'granted' ? 'brand' : alertState === 'denied' ? 'amber' : 'default'} dot>
+                  {alertState === 'granted'
+                    ? 'Desktop notifications allowed'
+                    : alertState === 'denied'
+                      ? 'Blocked in browser settings'
+                      : alertState === 'unsupported'
+                        ? 'Not supported by this browser'
+                        : 'Permission not granted yet'}
+                </Badge>
+              </div>
+              {alertState === 'denied' ? (
+                <div style={{ marginTop: 10 }}>
+                  <AlertBox tone="warn">
+                    Notifications are blocked for this site. Re-allow them from the padlock icon in the
+                    address bar, then reload.
+                  </AlertBox>
+                </div>
+              ) : null}
+            </div>
+          </Card>
+
+          <Card>
             <CardHead title="Push notifications" subtitle={`${registeredDevices} device${registeredDevices === 1 ? '' : 's'} registered`} />
             <div className="card-pad">
               <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 12 }}>
@@ -332,36 +404,17 @@ export function SettingsPage() {
                 <dt>Mode</dt>
                 <dd>{USE_EMULATORS ? 'Local emulators' : 'Google Cloud'}</dd>
                 <dt>Region</dt>
-                <dd>us-central1</dd>
+                <dd>asia-south1</dd>
                 <dt>Account uid</dt>
                 <dd className="mono" style={{ fontSize: 11 }}>
                   {user?.uid}
                 </dd>
               </dl>
-              <div className="alert-box info" style={{ marginTop: 12, fontSize: 11.8 }}>
-                <Icon name="info" size={14} />
-                <span>
-                  Deployment, IAM and evidence for the viva are collected on the{' '}
-                  <Link to="/system">Cloud status</Link> page.
-                </span>
-              </div>
             </div>
           </Card>
         </div>
       </div>
 
-      {profile?.caregivers && profile.caregivers.length > 0 ? (
-        <Card className="card-pad" style={{ marginTop: 16 }}>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Icon name="shield" size={18} />
-            <div style={{ fontSize: 12.5, color: 'var(--muted)', flex: 1, minWidth: 220 }}>
-              {profile.caregivers.length} caregiver{profile.caregivers.length === 1 ? '' : 's'} can see
-              your records and log doses. Manage access in the <strong>Care circle</strong>.
-            </div>
-            <Badge tone="brand">Read-only clinical data</Badge>
-          </div>
-        </Card>
-      ) : null}
     </>
   )
 }

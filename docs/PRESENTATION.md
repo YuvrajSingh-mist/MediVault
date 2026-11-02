@@ -21,11 +21,13 @@ npm run verify
 ```
 
 * Browser window 1: `http://127.0.0.1:5173` (patient).
-* Browser window 2: `http://127.0.0.1:5173` in a private window (caregiver).
+* Browser window 2: `http://127.0.0.1:5173` in a second window, same account (used to prove
+  cross-window live updates and alerts).
 * Browser tab 3: `http://127.0.0.1:4000` (Emulator UI — Firestore, Storage, Auth tabs).
 * Browser tab 4: **GCP console** — Cloud Scheduler and Cloud Logging, already logged in.
 * Close notifications, set the display to 1080p, hide the macOS dock, enlarge the browser zoom to 110–125 %.
-* Have a sample PDF (`prescription.pdf`) on the desktop for the upload step.
+* Allow notifications for `localhost` (or the deployed URL) in advance, so the desktop-alert
+  step does not stall on a browser permission prompt.
 
 **If you are demonstrating the deployed GCP project instead of local emulators**, replace the local
 URLs with `https://<project>.web.app`, and show *Firebase console → Firestore / Storage* and *Cloud
@@ -41,17 +43,16 @@ narration lost.
 | # | Slide | Owner | Time |
 |---|-------|-------|------|
 | 1 | Title — MediVault, team names, course | M1 | 0:00–0:30 |
-| 2 | Problem: adherence, stock-outs, lost prescriptions, caregiver coordination | M1 | 0:30–1:20 |
-| 3 | Objectives and the 8 required features | M1 | 1:20–2:00 |
+| 2 | Problem: missed doses, stock-outs unnoticed, expiry dates, forgotten appointments | M1 | 0:30–1:20 |
+| 3 | Objectives and the feature set | M1 | 1:20–2:00 |
 | 4 | Architecture diagram (the one from the README) | M3 | 2:00–3:00 |
 | 5 | GCP services table + why serverless | M3 | 3:00–3:45 |
-| 6 | Data model + security rules (owner vs caregiver) | M2 | 3:45–4:45 |
+| 6 | Data model + security rules (per-user isolation) | M2 | 3:45–4:45 |
 | 7 | **Demo 1** — sign-in, dashboard, today's doses | M1 | 4:45–6:00 |
-| 8 | **Demo 2** — medicines, dose logging, prescription upload | M2 | 6:00–7:15 |
+| 8 | **Demo 2** — medicines, dose logging, website alerts | M2 | 6:00–7:15 |
 | 9 | **Demo 3** — sweep, alerts, Scheduler run, Cloud Logging | M3 | 7:15–8:30 |
-| 10 | **Demo 4** — caregiver sharing | M2 | 8:30–9:10 |
-| 11 | Verification results + bundle metrics | M3 | 9:10–9:40 |
-| 12 | Conclusion, team split, thank you | All | 9:40–10:00 |
+| 10 | Verification results + bundle metrics | M3 | 8:30–9:10 |
+| 11 | Conclusion, team split, thank you | All | 9:10–10:00 |
 
 ---
 
@@ -89,13 +90,15 @@ narration lost.
 
 ### 1:20 – 2:00 · Slide 3 · Member 1
 
-> "Our objectives map directly onto the eight required features. Users sign up or sign in with email
-> or Google. They add, edit and delete medicines with dosages, multiple daily times, tablet counts and
-> expiry dates. They upload prescriptions as images or PDFs. A dashboard shows today's plan and lets
+> "Our objectives map directly onto the required features. Users sign in with Google — one click, no
+> password for us to store. They add, edit and delete medicines with dosages, multiple daily times,
+> tablet counts and expiry dates. A dashboard shows today's plan and lets
 > them mark doses taken, skipped or undone. The system raises low-stock and expiry alerts, reminds them
-> of appointments twenty-four hours ahead, and can share the whole record with a caregiver through a
-> six-character code. Finally, the deployed app can prove its own cloud usage — logs, scheduler runs,
-> and live environment details are visible from inside the product."
+> of appointments twenty-four hours ahead. Alerts reach them four ways — a toast in the page, a
+> desktop notification, web push, and email — all driven by the same Firestore document. Finally, the
+> deployed app can prove its own cloud usage: logs, scheduler runs and live environment details are
+> visible from inside the product. We deliberately kept the interface to six screens rather than
+> adding features we could not demo end to end."
 
 ---
 
@@ -107,11 +110,11 @@ narration lost.
 >
 > **Cloud Functions** — second generation, which means they actually run as Cloud Run services — sit in
 > the middle and are triggered in three different ways. The browser calls them directly for dose
-> logging, caregiver codes and profile provisioning. **Cloud Scheduler** invokes the reminder sweep
+> logging and profile provisioning. **Cloud Scheduler** invokes the reminder sweep
 > every five minutes and the daily digest at eight UTC. And **Cloud Storage** raises a finalize event
 > whenever a prescription lands in the private bucket, which triggers the indexing function.
 >
-> Data lives in **Firestore** and the prescription bucket. Reminders fan out through **Firebase Cloud
+> Data lives in **Firestore**, with binary objects in a private Storage bucket that only a trusted trigger writes metadata for. Reminders fan out through **Firebase Cloud
 > Messaging** for browser push and **SendGrid** for email — and when SendGrid is not configured,
 > messages are still composed into a Firestore outbox so the pipeline stays auditable. Everything logs
 > to **Cloud Logging** and **Cloud Monitoring**, and the scheduler writes its run history back into
@@ -139,16 +142,18 @@ narration lost.
 > medicine, each appointment, each prescription, each reminder and each dose log. That single
 > denormalised field is what makes authorization a cheap equality check instead of a join.
 >
-> On top of it we write **Firestore security rules**. An owner can read and write their own records. A
-> caregiver can read them, and can update only the four fields that represent acknowledgement on a
-> reminder — but can never edit a medicine, an appointment or a prescription. Two collections can never
-> be written by a browser at all: prescriptions, which are created by the Storage trigger, and
-> mailOutbox, which is created by the email function.
+> On top of it we write **Firestore security rules**. A user can read and write only documents whose
+> `userId` equals their token's uid, and reminder acknowledgement is limited to the four fields that
+> represent state, so an alert can never be rewritten into a fake one. Two collections can never be
+> written by a browser at all: `prescriptions`, which is created by the Storage trigger, and
+> `mailOutbox`, which is created by the email function.
 >
 > Security rules exist for Cloud Storage too: the path is `prescriptions/{userId}/file`, only that user
-> may upload, uploads are capped at ten megabytes, and only images or PDFs are accepted. Caregivers get
-> read access to the same path. And the caregiver relationship itself is a one-time six-character code
-> — roughly 887 million combinations, clash-checked, rotatable, capped at ten caregivers per patient."
+> may upload, uploads are capped at ten megabytes, and only images or PDFs are accepted.
+>
+> The same delegation model that lets a caregiver read a patient's records is still implemented in the
+> rules and in three callables, but we removed it from the interface — we would rather defend a small
+> surface completely than demo a large one shallowly."
 
 ---
 
@@ -191,18 +196,30 @@ narration lost.
 > "Editing propagates instantly because the page is a live Firestore query — an `onSnapshot`
 > subscription — not a fetch on page load."
 
-[Open **Prescriptions**, drag in `prescription.pdf`]
+[Click **Load sample data** on an empty vault — the dashboard fills in without a reload]
 
-> "Uploads go straight from the browser to Cloud Storage. The file never passes through our own
-> server, and the bucket is private. The security rules accepted it because it is a PDF under ten
-> megabytes in my own folder. As soon as the object finalizes, the `onPrescriptionUploaded` function
-> fires, hashes the object path into a stable document id, and writes the metadata into Firestore. The
-> page waits for that indexed record to appear — which is exactly what you see here."
+> "Watch what happens after this write: today's doses and the next appointment appear by themselves. The
+> mutations bump a version counter that every live query subscribes to, so we never ask the user to
+> refresh the page."
 
-[Try uploading a `.txt` file — it is rejected]
+[Open **/system** in the second window, leave the dashboard visible, then click **Run sweep now**]
 
-> "A text file is refused by the same rules. This is the important part: the client check is a
-> convenience, the rule is the guarantee."
+> "That second window is writing to Firestore as this one watches. A new reminder document just landed
+> and it popped up here as a toast, and the bell badge on the Alerts item went up on its own — no
+> polling, no refresh. Only alerts created after the page opened are announced, because the component
+> primes itself with the ids that already exist."
+
+[Minimise the window, trigger a sweep again from the other window, then restore]
+
+> "Same document, second channel: because the tab was hidden, the Web Notifications API also raised a
+> real desktop notification. And in Settings there is the permission request and a test button, so you
+> can show the OS pop-up on demand. That is the website-alert layer — it is what the user actually sees."
+
+[Settings → Website alerts → Send a test alert]
+
+> "Behind it sit the other two channels. FCM push reaches the device when the tab is closed, and email
+> goes through SendGrid — or into `mailOutbox` when no key is configured, which keeps delivery
+> auditable in the demo."
 
 ---
 
@@ -227,7 +244,7 @@ narration lost.
 > configured locally, the email is composed and written to the `mailOutbox` collection, so you can still
 > audit it."
 
-[Switch to the Emulator UI → Firestore → reminders; then Cloud status page]
+[Switch the other window to the Alerts page — it updated with no reload]
 
 > "The same run wrote its summary to `system/status`. The Cloud status page reads it: documents
 > scanned, alerts created, users notified, duration, and the last eight runs. This is the in-app mirror
@@ -241,30 +258,7 @@ narration lost.
 
 ---
 
-### 8:30 – 9:10 · Demo 4 · Member 2
-
-[Open **Care circle**, click generate]
-
-> "Caregiver sharing. The patient generates a six-character code; it is stored on their profile and is
-> validated by a Cloud Function, not by the client. Our second browser window is a different account."
-
-[Browser 2, sign in as caregiver, paste the code]
-
-> "Redeeming the code links both profiles in a transaction: the patient's `caregivers` array and the
-> caregiver's `caregiverOf` array. From that moment the rules allow the caregiver to read the patient's
-> records. The header here lets a caregiver switch between their own records and the patient they look
-> after."
-
-[Show the patient's dashboard in the caregiver view; try to edit a medicine]
-
-> "The caregiver can see the plan and log doses — the dose log records `loggedByRole: caregiver`, which
-> appears in the audit trail — but the edit and delete controls are not available, and a direct write
-> would be rejected by the rules with a permission error. Read access, dose logging, no clinical
-> edits."
-
----
-
-### 9:10 – 9:40 · Slide 11 · Member 3
+### 8:30 – 9:10 · Slide 10 · Member 3
 
 > "We did not just click around. We wrote an end-to-end verification suite that runs against the real
 > emulated services — real sign-ups, real rules, real callables, a real storage upload and trigger. It
@@ -299,7 +293,7 @@ narration lost.
 | Sweep shows no alerts | The seeded dose is due at the current minute; re-run the sweep after 60 s, or point at the low-stock and appointment alerts that are always present |
 | Emulator UI slow | Skip it; the Cloud status page shows the same run data from `system/status` |
 | Internet down | Everything you need is local except the GCP console screenshots — have those as static images on a slide |
-| Running over time | Cut Demo 4 (caregiver) to 20 s, then drop the Cloud status walkthrough; never cut the problem statement or the architecture |
+| Running over time | Drop the Cloud status walkthrough, then the live alert demo; never cut the problem statement or the architecture |
 
 ---
 
@@ -311,10 +305,12 @@ narration lost.
    with create-if-absent semantics.
 3. **How is inventory protected?** A transaction over the medicine and dose-log documents, with
    state-aware arithmetic.
-4. **How do rules know a caregiver is legitimate?** They read the caller's `caregiverOf` array, written
-   only by the `redeemCaregiverCode` function.
-5. **Why not write prescriptions metadata from the client?** Because a client can lie; the Storage
-   trigger derives it from the object that actually exists.
+4. **Why did you remove features instead of adding more?** Because every additional surface needs its
+   own rules, tests and demo time; the six screens that remain are the ones we can prove end to end.
+   Prescription uploads and caregiver sharing survive as tested backend capabilities.
+5. **How does a desktop notification differ from a web push?** The desktop notification is raised by
+   the open tab through the Web Notifications API; web push goes through FCM and a service worker, so
+   it still arrives when the tab is closed.
 6. **What would you change at scale?** Replace the bounded global sweep with per-user Cloud Tasks
    fan-out, add App Check, and export analytics to BigQuery.
 7. **Where is the cost risk?** Unbounded scans and instance count; both are capped by `SCOPE_LIMIT` and

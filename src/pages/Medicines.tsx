@@ -12,7 +12,7 @@ import {
 import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthProvider'
 import { useToast } from '../context/ToastProvider'
-import { useMedicines } from '../lib/data'
+import { refreshData, useMedicines } from '../lib/data'
 import { errorMessage } from '../lib/api'
 import {
   countExpiring,
@@ -58,7 +58,7 @@ const PRESETS: Array<{ label: string; time: string }> = [
 type Filter = 'all' | 'low' | 'expiring' | 'inactive'
 
 export function MedicinesPage() {
-  const { activeUserId, profile, isCaregiverView } = useAuth()
+  const { activeUserId, profile } = useAuth()
   const { toast } = useToast()
   const medicines = useMedicines(activeUserId)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -72,13 +72,11 @@ export function MedicinesPage() {
   const zone = profile?.timezone
 
   useEffect(() => {
-    if (searchParams.get('new') === '1' && !isCaregiverView) {
+    if (searchParams.get('new') === '1') {
       setCreating(true)
       setSearchParams({}, { replace: true })
-    } else if (searchParams.get('new') === '1') {
-      setSearchParams({}, { replace: true })
     }
-  }, [searchParams, setSearchParams, isCaregiverView])
+  }, [searchParams, setSearchParams])
 
   const filtered = useMemo(() => {
     const list = medicines || []
@@ -102,6 +100,7 @@ export function MedicinesPage() {
     setDeleting(true)
     try {
       await deleteDoc(doc(db, 'medicines', deleteTarget.id))
+      refreshData()
       toast(`${deleteTarget.name} removed.`, 'success')
       setDeleteTarget(null)
     } catch (err) {
@@ -118,17 +117,11 @@ export function MedicinesPage() {
     <>
       <PageHeader
         title="Medicines"
-        subtitle={
-          isCaregiverView
-            ? 'Read-only view — only the patient can edit their medicines.'
-            : 'Doses, stock levels and expiry dates, all in one place.'
-        }
+        subtitle="Doses, stock levels and expiry dates, all in one place."
         actions={
-          !isCaregiverView ? (
-            <Button icon="plus" onClick={() => setCreating(true)}>
-              Add medicine
-            </Button>
-          ) : undefined
+          <Button icon="plus" onClick={() => setCreating(true)}>
+            Add medicine
+          </Button>
         }
       />
 
@@ -186,7 +179,7 @@ export function MedicinesPage() {
                 : 'Try a different search term or filter.'
             }
             action={
-              medicines.length === 0 && !isCaregiverView ? (
+              medicines.length === 0 ? (
                 <Button icon="plus" onClick={() => setCreating(true)}>
                   Add medicine
                 </Button>
@@ -210,26 +203,24 @@ export function MedicinesPage() {
                       {[medicine.dosage, medicine.form].filter(Boolean).join(' · ') || 'No dosage set'}
                     </div>
                   </div>
-                  {!isCaregiverView ? (
-                    <div className="med-actions">
-                      <button
-                        type="button"
-                        className="mini-btn"
-                        aria-label={`Edit ${medicine.name}`}
-                        onClick={() => setEditing(medicine)}
-                      >
-                        <Icon name="edit" size={15} />
-                      </button>
-                      <button
-                        type="button"
-                        className="mini-btn danger"
-                        aria-label={`Delete ${medicine.name}`}
-                        onClick={() => setDeleteTarget(medicine)}
-                      >
-                        <Icon name="trash" size={15} />
-                      </button>
-                    </div>
-                  ) : null}
+                  <div className="med-actions">
+                    <button
+                      type="button"
+                      className="mini-btn"
+                      aria-label={`Edit ${medicine.name}`}
+                      onClick={() => setEditing(medicine)}
+                    >
+                      <Icon name="edit" size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      className="mini-btn danger"
+                      aria-label={`Delete ${medicine.name}`}
+                      onClick={() => setDeleteTarget(medicine)}
+                    >
+                      <Icon name="trash" size={15} />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="chip-row">
@@ -287,38 +278,34 @@ export function MedicinesPage() {
         </div>
       )}
 
-      {!isCaregiverView ? (
-        <>
-          <MedicineForm
-            open={creating || Boolean(editing)}
-            medicine={editing}
-            userId={activeUserId}
-            onClose={() => {
-              setCreating(false)
-              setEditing(null)
-            }}
-            onSaved={(name, mode) => {
-              toast(`${name} ${mode === 'create' ? 'added' : 'updated'}.`, 'success')
-              setCreating(false)
-              setEditing(null)
-            }}
-          />
+      <MedicineForm
+        open={creating || Boolean(editing)}
+        medicine={editing}
+        userId={activeUserId}
+        onClose={() => {
+          setCreating(false)
+          setEditing(null)
+        }}
+        onSaved={(name, mode) => {
+          toast(`${name} ${mode === 'create' ? 'added' : 'updated'}.`, 'success')
+          setCreating(false)
+          setEditing(null)
+        }}
+      />
 
-          <ConfirmDialog
-            open={Boolean(deleteTarget)}
-            title={`Delete ${deleteTarget?.name || 'medicine'}?`}
-            message={
-              <>
-                This removes the medicine, its schedule and its history from Firestore. Alerts that
-                were already delivered stay in your alert feed. This cannot be undone.
-              </>
-            }
-            loading={deleting}
-            onCancel={() => setDeleteTarget(null)}
-            onConfirm={remove}
-          />
-        </>
-      ) : null}
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={`Delete ${deleteTarget?.name || 'medicine'}?`}
+        message={
+          <>
+            This removes the medicine, its schedule and its history from Firestore. Alerts that were
+            already delivered stay in your alert feed. This cannot be undone.
+          </>
+        }
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={remove}
+      />
 
       <p style={{ marginTop: 16, fontSize: 11.5, color: 'var(--muted-2)' }}>
         Stored in Cloud Firestore · {medicines?.length || 0} documents · today is{' '}
@@ -445,6 +432,7 @@ function MedicineForm({
     try {
       if (medicine) {
         await updateDoc(doc(db, 'medicines', medicine.id), payload)
+        refreshData()
         onSaved(payload.name, 'update')
       } else {
         await addDoc(collection(db, 'medicines'), {
@@ -452,6 +440,9 @@ function MedicineForm({
           userId,
           createdAt: serverTimestamp(),
         })
+        // A brand-new document only lands in `orderBy('createdAt')` queries once
+        // the server resolves the timestamp, so ask for a fresh read here.
+        refreshData()
         onSaved(payload.name, 'create')
       }
     } catch (err) {

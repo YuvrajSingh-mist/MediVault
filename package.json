@@ -10,11 +10,15 @@
     "preview": "vite preview --port 4173",
     "typecheck": "tsc --noEmit",
     "emulators": "firebase emulators:start",
-    "deploy": "npm run build && firebase deploy",
-    "deploy:hosting": "npm run build && firebase deploy --only hosting",
+    "deploy": "npm run build && firebase deploy --project medivault-gcp-23875",
+    "deploy:hosting": "npm run build && python3 scripts/deploy-hosting.py",
     "deploy:functions": "firebase deploy --only functions",
     "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage",
-    "verify": "node scripts/verify-backend.mjs"
+    "verify": "node scripts/verify-backend.mjs",
+    "verify:deployed": "node scripts/verify-deployed.mjs",
+    "diagrams": "python3 scripts/generate-diagrams.py",
+    "figures": "python3 scripts/generate-figures.py",
+    "report": "cd docs/report && tectonic -X compile main.tex && cp main.pdf MediVault-Report.pdf"
   },
   "dependencies": {
     "firebase": "^11.10.0",

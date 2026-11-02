@@ -2,6 +2,7 @@
 
 const { getFirestore } = require('firebase-admin/firestore')
 const { HttpsError } = require('firebase-functions/v2/https')
+const { createDefaultProfile } = require('./profile')
 
 /**
  * Access control shared by all callables.
@@ -13,14 +14,20 @@ async function requireUser(request) {
   if (!request.auth || !request.auth.uid) {
     throw new HttpsError('unauthenticated', 'Please sign in to continue.')
   }
-  const snap = await getFirestore().doc(`users/${request.auth.uid}`).get()
-  if (!snap.exists) {
-    throw new HttpsError(
-      'failed-precondition',
-      'Your MediVault profile is missing. Reload the app and try again.',
-    )
-  }
-  return { uid: request.auth.uid, profile: snap.data() }
+  const db = getFirestore()
+  const ref = db.doc(`users/${request.auth.uid}`)
+  const snap = await ref.get()
+  if (snap.exists) return { uid: request.auth.uid, profile: snap.data() }
+
+  // Self-healing: a signed-in user always gets a profile. This keeps callables
+  // working when someone signs in on a new device (or redeems a caregiver code)
+  // before the client-side ensureUserProfile call has landed.
+  const { profile } = await createDefaultProfile({
+    ...(request.auth.token || {}),
+    uid: request.auth.uid,
+  })
+  await ref.set(profile, { merge: true })
+  return { uid: request.auth.uid, profile }
 }
 
 function isCaregiverOf(profile, ownerId) {

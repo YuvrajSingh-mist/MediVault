@@ -22,7 +22,7 @@ const ARCHITECTURE: Array<{ title: string; detail: string; icon: IconName }> = [
   { title: 'Firebase Hosting', detail: 'Serves the compiled React SPA over a global CDN with HTTPS.', icon: 'cloud' },
   { title: 'Firebase Authentication', detail: 'Email/password and Google sign-in; ID tokens authorise every request.', icon: 'lock' },
   { title: 'Cloud Firestore', detail: 'Live document store for medicines, appointments, reminders and dose logs.', icon: 'database' },
-  { title: 'Cloud Storage', detail: 'Private bucket for prescriptions and reports (10 MB, image/PDF only).', icon: 'file' },
+  { title: 'Cloud Storage', detail: 'Private bucket with owner-scoped security rules and a finalize trigger.', icon: 'file' },
   { title: 'Cloud Functions (2nd gen)', detail: 'Runs on Cloud Run: callables, Storage trigger and HTTP health endpoint.', icon: 'activity' },
   { title: 'Cloud Scheduler', detail: 'Invokes sweepReminders every 5 minutes and dailyDigest at 08:00 UTC.', icon: 'clock' },
   { title: 'FCM + SendGrid', detail: 'Fan-out to browser push and email; outbox fallback keeps it auditable.', icon: 'bell' },
@@ -465,7 +465,7 @@ npm run deploy`}</pre>
         <ol style={{ margin: 0, paddingLeft: 18, fontSize: 12.6, color: 'var(--muted)', lineHeight: 1.9 }}>
           <li>Firebase Hosting: reload the deployed URL and show the HTTPS certificate.</li>
           <li>Firestore: create a medicine here, then show the document in the console.</li>
-          <li>Cloud Storage: upload a prescription, open the object, show its metadata and size.</li>
+          <li>Cloud Storage: show the bucket, its rules and the storage trigger wired to Cloud Functions.</li>
           <li>Cloud Scheduler: run “Run sweep now”, then show the job’s next execution time and this run’s document.</li>
           <li>Cloud Logging: filter by <span className="mono">reminder_sweep</span> and show the JSON payload with counts and duration.</li>
         </ol>

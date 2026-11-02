@@ -4,8 +4,8 @@ import type { CloudHealth, SweepSummary, UserProfile } from '../types'
 
 /**
  * Thin, typed wrappers around the Cloud Functions callables.
- * Everything that needs to be trusted (stock counts, caregiver links, email
- * delivery, sweep throttling) is implemented server-side.
+ * Everything that needs to be trusted (stock counts, email delivery, sweep
+ * throttling) is implemented server-side.
  */
 
 async function call<TResult>(name: string, data: Record<string, unknown> = {}): Promise<TResult> {
@@ -18,12 +18,6 @@ export interface LogDoseResult {
   status: 'taken' | 'skipped' | 'pending'
   remainingTablets: number
   role: 'owner' | 'caregiver'
-}
-
-export interface RedeemResult {
-  ownerId: string
-  ownerName: string
-  ownerEmail: string
 }
 
 export interface SeedResult {
@@ -45,21 +39,10 @@ export const api = {
 
   seedDemoData: () => call<SeedResult>('seedDemoData'),
 
-  generateCaregiverCode: () => call<{ code: string }>('generateCaregiverCode'),
-
-  redeemCaregiverCode: (code: string) => call<RedeemResult>('redeemCaregiverCode', { code }),
-
-  removeCaregiver: (caregiverUid: string) => call<{ removed: boolean }>('removeCaregiver', { caregiverUid }),
-
-  leaveCaregiver: (ownerUid: string) => call<{ left: boolean }>('leaveCaregiver', { ownerUid }),
-
   registerFcmToken: (token: string, remove = false) =>
     call<{ registered: boolean }>('registerFcmToken', { token, remove }),
 
   sendTestEmail: () => call<{ status: string; provider: string }>('sendTestEmail'),
-
-  deletePrescription: (prescriptionId: string) =>
-    call<{ deleted: boolean }>('deletePrescription', { prescriptionId }),
 
   cloudHealth: () => call<CloudHealth>('cloudHealth'),
 }
@@ -81,7 +64,10 @@ export function errorMessage(error: unknown): string {
   if (code === 'auth/popup-closed-by-user') return 'Google sign-in was cancelled.'
   if (code === 'auth/popup-blocked') return 'Your browser blocked the pop-up. Allow pop-ups for this site and retry.'
   if (code === 'auth/operation-not-allowed') {
-    return 'This sign-in method is not enabled in Firebase Authentication yet.'
+    return 'Google sign-in is not enabled for this Firebase project yet. Open Firebase Console → Authentication → Sign-in method → Google → Enable, then try again.'
+  }
+  if (code === 'auth/unauthorized-domain') {
+    return 'This domain is not authorised for Firebase Authentication. Add it under Authentication → Settings → Authorized domains.'
   }
   if (code === 'auth/network-request-failed') {
     return 'Cannot reach Firebase Authentication. If you are using the emulators, start them with "npm run emulators".'
