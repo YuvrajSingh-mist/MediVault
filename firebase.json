@@ -58,10 +58,12 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
-  "storage": {
-    "bucket": "medivault-gcp-23875-files",
-    "rules": "storage.rules"
-  },
+  "storage": [
+    {
+      "bucket": "medivault-gcp-23875-files",
+      "rules": "storage.rules"
+    }
+  ],
   "functions": [
     {
       "source": "functions",

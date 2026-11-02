@@ -35,6 +35,7 @@ const IDENTITY = `https://identitytoolkit.googleapis.com/v1/accounts:${'signInWi
 
 let passed = 0
 let failed = 0
+let skipped = 0
 const lines = []
 
 function check(name, condition, detail = '') {
@@ -47,6 +48,18 @@ function check(name, condition, detail = '') {
   }
 }
 
+function skip(name, why) {
+  skipped += 1
+  lines.push(`  SKIP  ${name} - ${why}`)
+}
+
+function report() {
+  console.log(lines.join('\n'))
+  console.log('='.repeat(70))
+  console.log(`${passed} passed, ${skipped} skipped, ${failed} failed\n`)
+  process.exit(failed === 0 ? 0 : 1)
+}
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 async function json(response) {
@@ -56,20 +69,6 @@ async function json(response) {
   } catch {
     return { raw: text }
   }
-}
-
-async function signIn(email, password) {
-  const response = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, returnSecureToken: true }),
-    },
-  )
-  const body = await json(response)
-  if (!response.ok) throw new Error(`signIn ${email}: ${JSON.stringify(body.error || body)}`)
-  return body
 }
 
 async function call(name, token, data = {}) {
@@ -155,32 +154,10 @@ async function main() {
     )
     check(
       'Bundle talks to the real cloud (emulators disabled)',
-      bundle.includes('identitytoolkit.googleapis.com') || bundle.includes(`firebaseio`) || true,
+      !/127\.0\.0\.1:\d{4}|localhost:\d{4}/.test(bundle),
       'production build',
     )
   }
-
-  /* --------------------------------------------------------------- auth -- */
-  const patientEmail = `deploycheck.${Date.now()}@medivault.test`
-  const signup = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: patientEmail, password: 'medivault123', returnSecureToken: true }),
-  })
-  const patient = await json(signup)
-  check('Firebase Authentication issues an ID token', Boolean(patient.idToken), patient.localId || signup.status)
-
-  const caregiverEmail = `deploycare.${Date.now()}@medivault.test`
-  const caregiverSignup = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: caregiverEmail, password: 'medivault123', returnSecureToken: true }),
-    },
-  )
-  const caregiver = await json(caregiverSignup)
-  check('Firebase Authentication issues a second (caregiver) token', Boolean(caregiver.idToken))
 
   /* ------------------------------------------------------- http health --- */
   const api = await fetch(`${FN}/api`)
@@ -190,6 +167,35 @@ async function main() {
     api.ok && apiBody.status === 'ok' && apiBody.firestore === true,
     `revision ${apiBody.revision || '?'} · ${apiBody.latencyMs}ms`,
   )
+
+  const unauthCall = await call('cloudHealth', 'none')
+  check('Callables reject an unauthenticated caller', unauthCall.status === 401, `HTTP ${unauthCall.status}`)
+
+  const unauthList = await fsList('medicines', 'none')
+  check(
+    'Firestore rules reject an unauthenticated read',
+    unauthList.status === 401 || unauthList.status === 403,
+    `HTTP ${unauthList.status}`,
+  )
+
+  /* --------------------------------------------------------------- auth -- */
+  // Google is the only enabled identity provider, so this script cannot mint
+  // throwaway accounts over REST. Supply real sessions to run the signed-in
+  // half:
+  //   VERIFY_ID_TOKEN        - the patient account's ID token
+  //   VERIFY_CAREGIVER_TOKEN - an account linked to that patient as caregiver
+  // Without them the public surface above is still verified in full.
+  const jwtClaims = (token) => JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())
+  const patient = { idToken: process.env.VERIFY_ID_TOKEN || null }
+  const caregiver = { idToken: process.env.VERIFY_CAREGIVER_TOKEN || null }
+  if (patient.idToken) patient.localId = jwtClaims(patient.idToken).user_id
+  if (caregiver.idToken) caregiver.localId = jwtClaims(caregiver.idToken).user_id
+
+  if (!patient.idToken) {
+    skip('Signed-in suite', 'set VERIFY_ID_TOKEN (and VERIFY_CAREGIVER_TOKEN) to run it; sign-in is Google-only')
+    report()
+    return
+  }
 
   /* ------------------------------------------------------------ profile -- */
   const profile = await call('ensureUserProfile', patient.idToken, { timezone: 'Asia/Kolkata' })
@@ -286,21 +292,29 @@ async function main() {
   check('Callable logDose undo restores the tablet', undo.body?.remainingTablets === before, `back to ${undo.body?.remainingTablets}`)
 
   /* --------------------------------------------------------- caregiver --- */
-  const code = (await call('generateCaregiverCode', patient.idToken)).body?.code
-  check('Callable generateCaregiverCode issues a 6-character code', /^[A-Z0-9]{6}$/.test(code || ''), code)
+  if (caregiver.idToken) {
+    const code = (await call('generateCaregiverCode', patient.idToken)).body?.code
+    check('Callable generateCaregiverCode issues a 6-character code', /^[A-Z0-9]{6}$/.test(code || ''), code)
 
-  const redeem = await call('redeemCaregiverCode', caregiver.idToken, { code })
-  check('Callable redeemCaregiverCode links the caregiver', redeem.ok && redeem.body?.ownerId === patient.localId)
+    const redeem = await call('redeemCaregiverCode', caregiver.idToken, { code })
+    check('Callable redeemCaregiverCode links the caregiver', redeem.ok && redeem.body?.ownerId === patient.localId)
 
-  const caregiverRead = await fsGet(`medicines/${metforminId}`, caregiver.idToken)
-  check('Firestore rules grant the linked caregiver read access', caregiverRead.status === 200, `HTTP ${caregiverRead.status}`)
+    const caregiverRead = await fsGet(`medicines/${metforminId}`, caregiver.idToken)
+    check('Firestore rules grant the linked caregiver read access', caregiverRead.status === 200, `HTTP ${caregiverRead.status}`)
 
-  const caregiverWrite = await fetch(`${FS}/medicines/${metforminId}?updateMask.fieldPaths=name`, {
-    method: 'PATCH',
-    headers: { Authorization: `Bearer ${caregiver.idToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fields: { name: { stringValue: 'Tampered' } } }),
-  })
-  check('Firestore rules deny a caregiver editing clinical data', caregiverWrite.status === 403, `HTTP ${caregiverWrite.status}`)
+    const caregiverWrite = await fetch(`${FS}/medicines/${metforminId}?updateMask.fieldPaths=name`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${caregiver.idToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: { name: { stringValue: 'Tampered' } } }),
+    })
+    check(
+      'Firestore rules deny a caregiver editing clinical data',
+      caregiverWrite.status === 403,
+      `HTTP ${caregiverWrite.status}`,
+    )
+  } else {
+    skip('Caregiver linking and read/write rules', 'set VERIFY_CAREGIVER_TOKEN to run them')
+  }
 
   /* ----------------------------------------------------------- storage --- */
   const objectPath = `prescriptions/${patient.localId}/${Date.now()}_deploy-check.pdf`
@@ -353,10 +367,7 @@ async function main() {
     `${health.body?.runtime} · ${health.body?.region} · ${health.body?.bucket}`,
   )
 
-  console.log(lines.join('\n'))
-  console.log('='.repeat(70))
-  console.log(`${passed} passed, ${failed} failed\n`)
-  process.exit(failed === 0 ? 0 : 1)
+  report()
 }
 
 main().catch((err) => {
