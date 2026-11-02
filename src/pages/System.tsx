@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthProvider'
 import { useToast } from '../context/ToastProvider'
-import { useSmsOutbox, useNow, useSystemStatus } from '../lib/data'
+import { useMailOutbox, useNow, useSystemStatus } from '../lib/data'
 import { api, errorMessage } from '../lib/api'
 import { PROJECT_ID, USE_EMULATORS } from '../lib/firebase'
 import { formatDateTime, relativeTime } from '../lib/format'
@@ -20,12 +20,12 @@ import {
 
 const ARCHITECTURE: Array<{ title: string; detail: string; icon: IconName }> = [
   { title: 'Firebase Hosting', detail: 'Serves the compiled React SPA over a global CDN with HTTPS.', icon: 'cloud' },
-  { title: 'Firebase Authentication', detail: 'Google sign-in with a verified mobile number; ID tokens authorise every request.', icon: 'lock' },
+  { title: 'Firebase Authentication', detail: 'Email/password and Google sign-in; ID tokens authorise every request.', icon: 'lock' },
   { title: 'Cloud Firestore', detail: 'Live document store for medicines, appointments, reminders and dose logs.', icon: 'database' },
   { title: 'Cloud Storage', detail: 'Private bucket with owner-scoped security rules and a finalize trigger.', icon: 'file' },
   { title: 'Cloud Functions (2nd gen)', detail: 'Runs on Cloud Run: callables, Storage trigger and HTTP health endpoint.', icon: 'activity' },
   { title: 'Cloud Scheduler', detail: 'Invokes sweepReminders every 5 minutes and dailyDigest at 08:00 UTC.', icon: 'clock' },
-  { title: 'FCM + Twilio', detail: 'Fan-out to browser push and SMS; outbox fallback keeps it auditable.', icon: 'bell' },
+  { title: 'FCM + SendGrid', detail: 'Fan-out to browser push and email; outbox fallback keeps it auditable.', icon: 'bell' },
   { title: 'Cloud Logging & Monitoring', detail: 'Structured JSON logs, uptime check on /api and scheduler run history.', icon: 'shield' },
 ]
 
@@ -33,7 +33,7 @@ export function SystemPage() {
   const { user, profile } = useAuth()
   const { toast } = useToast()
   const status = useSystemStatus()
-  const sms = useSmsOutbox(user?.uid)
+  const mail = useMailOutbox(user?.uid)
   const now = useNow(30_000)
   const [health, setHealth] = useState<CloudHealth | null>(null)
   const [healthError, setHealthError] = useState<string | null>(null)
@@ -118,7 +118,7 @@ export function SystemPage() {
     <>
       <PageHeader
         title="Cloud status"
-        subtitle="What the Cloud Functions, scheduler and SMS sender are doing right now."
+        subtitle="What the Cloud Functions, scheduler and mailer are doing right now."
         actions={
           <>
             <Button variant="ghost" icon="refresh" onClick={() => void loadHealth()} loading={loadingHealth}>
@@ -187,7 +187,7 @@ export function SystemPage() {
           <div>
             <div className="stat-label">Push devices</div>
             <div className="stat-value" style={{ fontSize: 18 }}>{tokens}</div>
-            <div className="stat-sub">{health?.smsProvider === 'twilio' ? 'Twilio SMS on' : 'SMS → outbox'}</div>
+            <div className="stat-sub">{health?.mailProvider === 'sendgrid' ? 'SendGrid email on' : 'email → outbox'}</div>
           </div>
         </Card>
       </div>
@@ -251,15 +251,15 @@ export function SystemPage() {
                 ok={tokens > 0}
               />
               <ServiceRow
-                icon="phone"
-                name="SMS delivery"
+                icon="mail"
+                name="Email delivery"
                 detail={
-                  health?.smsProvider === 'twilio'
-                    ? 'Twilio credentials configured'
-                    : 'No Twilio credentials. Messages are recorded in smsOutbox.'
+                  health?.mailProvider === 'sendgrid'
+                    ? 'SendGrid API key configured'
+                    : 'No SendGrid key. Messages are recorded in mailOutbox.'
                 }
                 ok={Boolean(health)}
-                warn={health?.smsProvider !== 'twilio'}
+                warn={health?.mailProvider !== 'sendgrid'}
               />
               <ServiceRow
                 icon="shield"
@@ -294,7 +294,7 @@ export function SystemPage() {
                   <Metric label="Appointments scanned" value={lastRun.scannedAppointments} />
                   <Metric label="Alerts created" value={lastRun.createdReminders} tone="brand" />
                   <Metric label="Users notified" value={lastRun.notifiedUsers} />
-                  <Metric label="SMS sent" value={lastRun.smsSent} />
+                  <Metric label="Emails sent" value={lastRun.emailsSent} />
                   <Metric label="Pushes sent" value={lastRun.pushesSent} />
                   <Metric label="Failures" value={lastRun.failures} tone={lastRun.failures > 0 ? 'red' : undefined} />
                   <Metric label="Duration" value={`${lastRun.durationMs} ms`} />
@@ -372,28 +372,28 @@ export function SystemPage() {
         <div className="grid" style={{ gap: 16 }}>
           <Card>
             <CardHead
-              title="SMS outbox"
-              subtitle="Every reminder text composed by the backend"
-              actions={<Badge>{sms?.length || 0}</Badge>}
+              title="Mail outbox"
+              subtitle="Every reminder email composed by the backend"
+              actions={<Badge>{mail?.length || 0}</Badge>}
             />
-            {sms === null ? (
+            {mail === null ? (
               <div style={{ padding: 18 }}>
                 <Skeleton height={40} />
               </div>
-            ) : sms.length === 0 ? (
+            ) : mail.length === 0 ? (
               <div style={{ padding: 18, fontSize: 12.5, color: 'var(--muted)' }}>
-                No texts yet. Run a sweep so a reminder is due, or send a test SMS from Settings.
+                No emails yet. Run a sweep so a reminder is due, or send a test email from Settings.
               </div>
             ) : (
               <div className="list">
-                {sms.map((item) => (
+                {mail.map((item) => (
                   <div key={item.id} className="list-row" style={{ padding: '11px 16px' }}>
                     <div className={cx('alert-icon', item.status === 'failed' && 'expiry')}>
-                      <Icon name="phone" size={15} />
+                      <Icon name="mail" size={15} />
                     </div>
                     <div className="grow">
                       <div className="title" style={{ fontSize: 12.5 }}>
-                        {item.body}
+                        {item.subject}
                       </div>
                       <div className="sub" style={{ fontSize: 11.5 }}>
                         {item.to} · {relativeTime(item.createdAt)}

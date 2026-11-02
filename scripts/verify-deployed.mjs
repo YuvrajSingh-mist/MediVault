@@ -248,7 +248,7 @@ async function main() {
   check(
     'Cloud Scheduler engine (manual trigger) raises reminders',
     sweep.ok && Number(summary.createdReminders) > 0,
-    `created=${summary.createdReminders} sms=${summary.smsSent} ${summary.durationMs}ms`,
+    `created=${summary.createdReminders} emails=${summary.emailsSent} ${summary.durationMs}ms`,
   )
 
   const reminders = (await fsQuery('reminders', patient.localId, patient.idToken)).docs

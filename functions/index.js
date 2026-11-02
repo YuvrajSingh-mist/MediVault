@@ -12,7 +12,7 @@ const { logger } = require('firebase-functions')
 
 const { sweep, dailyDigest } = require('./lib/engine')
 const { requireUser, requireAccess } = require('./lib/access')
-const { sendSms, normalisePhone, isValidPhone } = require('./lib/sms')
+const { sendMail } = require('./lib/mailer')
 const { zonedParts, parseHHMM, minutesToHHMM, safeZone } = require('./lib/time')
 
 initializeApp()
@@ -35,7 +35,7 @@ const APP_URL = process.env.APP_URL || 'http://localhost:5173'
  */
 const STORAGE_BUCKET = process.env.STORAGE_BUCKET || undefined
 const DEFAULT_PREFS = {
-  sms: true,
+  email: true,
   push: true,
   dose: true,
   lowStock: true,
@@ -190,8 +190,7 @@ exports.ensureUserProfile = onCall({ cors: true }, async (request) => {
       email: token.email || data.email || '',
       displayName: token.name || data.displayName || (token.email || '').split('@')[0] || 'MediVault user',
       photoURL: token.picture || '',
-      phone: normalisePhone(token.phone_number) || '',
-      phoneVerified: Boolean(token.phone_number),
+      phone: '',
       timezone,
       caregiverCode: null,
       caregivers: [],
@@ -218,13 +217,6 @@ exports.ensureUserProfile = onCall({ cors: true }, async (request) => {
   const requestedName = (data.displayName || token.name || '').trim()
   if (requestedName && (!existing.displayName || existing.displayName === autoName)) {
     patch.displayName = requestedName
-  }
-  // A verified phone on the Auth account is authoritative; mirror it so the
-  // reminder engine can text the user even if they verified on another device.
-  const verifiedPhone = normalisePhone(token.phone_number)
-  if (verifiedPhone && (existing.phone !== verifiedPhone || existing.phoneVerified !== true)) {
-    patch.phone = verifiedPhone
-    patch.phoneVerified = true
   }
   await ref.update(patch)
   return { created: false, profile: { ...existing, ...patch } }
@@ -625,65 +617,20 @@ exports.registerFcmToken = onCall({ cors: true }, async (request) => {
   return { registered: !remove }
 })
 
-/**
- * Mirrors the phone number that Firebase Auth has already verified onto the
- * profile. The client cannot set `phoneVerified` itself (Firestore rules
- * forbid it), so this is the only way a number becomes textable.
- */
-exports.syncPhone = onCall({ cors: true }, async (request) => {
-  const { uid } = await requireUser(request)
-  const verified = normalisePhone(request.auth.token.phone_number)
-  if (!verified) {
-    throw new HttpsError(
-      'failed-precondition',
-      'No verified phone on this account yet. Complete the SMS check first.',
-    )
-  }
-
-  await db.doc(`users/${uid}`).set(
-    { phone: verified, phoneVerified: true, lastSeenAt: FieldValue.serverTimestamp() },
-    { merge: true },
-  )
-  logger.info('phone.verified', { uid, phone: verified })
-  return { phone: verified, phoneVerified: true }
-})
-
-/**
- * Records a number the user typed when verification could not run (for example
- * no SMS quota left). It is stored but marked unverified, so the reminder
- * engine will not text it until a real verification succeeds.
- */
-exports.savePhone = onCall({ cors: true }, async (request) => {
-  const { uid } = await requireUser(request)
-  const raw = String((request.data || {}).phone || '')
-  if (!isValidPhone(raw)) {
-    throw new HttpsError('invalid-argument', 'That does not look like a phone number.')
-  }
-  const phone = normalisePhone(raw)
-
-  await db.doc(`users/${uid}`).set(
-    { phone, phoneVerified: false, lastSeenAt: FieldValue.serverTimestamp() },
-    { merge: true },
-  )
-  logger.info('phone.saved_unverified', { uid })
-  return { phone, phoneVerified: false }
-})
-
-exports.sendTestSms = onCall({ cors: true }, async (request) => {
+exports.sendTestEmail = onCall({ cors: true }, async (request) => {
   const { uid, profile } = await requireUser(request)
-  if (!profile.phone) throw new HttpsError('failed-precondition', 'No phone number on this account.')
-  if (!profile.phoneVerified) {
-    throw new HttpsError('failed-precondition', 'Verify your phone number first.')
-  }
+  if (!profile.email) throw new HttpsError('failed-precondition', 'No email on this account.')
 
-  const provider = process.env.TWILIO_ACCOUNT_SID ? 'Twilio' : 'the SMS outbox'
-  const result = await sendSms({
-    to: profile.phone,
+  const provider = process.env.SENDGRID_API_KEY ? 'SendGrid' : 'the mail outbox'
+  const result = await sendMail({
+    to: profile.email,
     toUid: uid,
-    body: `MediVault test reminder - Cloud Functions, ${provider} and Firestore are connected. ${APP_URL}`,
+    subject: 'MediVault · test reminder',
+    text: `This is a test reminder from MediVault. Cloud Functions, ${provider} and Firestore are connected.`,
+    html: `<p>This is a test reminder from <strong>MediVault</strong>.</p><p>Cloud Functions and Firestore are connected.</p><p><a href="${APP_URL}">Open MediVault</a></p>`,
     tag: 'test',
   })
-  logger.info('test_sms.requested', { uid, status: result.status, provider: result.provider })
+  logger.info('test_email.requested', { uid, status: result.status, provider: result.provider })
   return result
 })
 
@@ -744,7 +691,7 @@ exports.cloudHealth = onCall({ cors: true }, async (request) => {
     bucket,
     firestoreOk,
     latencyMs: Date.now() - startedAt,
-    smsProvider: process.env.TWILIO_ACCOUNT_SID ? 'twilio' : 'outbox',
+    mailProvider: process.env.SENDGRID_API_KEY ? 'sendgrid' : 'outbox',
     sweepWindowMinutes: Number(process.env.REMINDER_WINDOW_MINUTES || 5),
     time: new Date().toISOString(),
   }

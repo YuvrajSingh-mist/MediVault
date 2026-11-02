@@ -10,7 +10,6 @@ import { MedicinesPage } from './pages/Medicines'
 import { AppointmentsPage } from './pages/Appointments'
 import { AlertsPage } from './pages/Alerts'
 import { SettingsPage } from './pages/Settings'
-import { PhoneSetupPage } from './pages/PhoneSetup'
 import { SystemPage } from './pages/System'
 
 function Splash({ message }: { message: string }) {
@@ -78,7 +77,7 @@ function StartupError({
 }
 
 function Shell() {
-  const { user, profile, loading, error, refresh, signOutUser } = useAuth()
+  const { user, loading, error, refresh, signOutUser } = useAuth()
 
   if (loading) return <Splash message="Connecting to Google Cloud…" />
 
@@ -92,19 +91,6 @@ function Shell() {
 
   if (error) {
     return <StartupError message={error} onRetry={() => void refresh()} onSignOut={() => void signOutUser()} />
-  }
-
-  // SMS is the reminder channel, so a number is required before the vault opens.
-  // The profile document arrives one snapshot after auth; hold on the splash
-  // until then rather than flashing the onboarding screen at returning users.
-  if (!profile) return <Splash message="Loading your vault…" />
-
-  if (!profile.phone) {
-    return (
-      <Routes>
-        <Route path="*" element={<PhoneSetupPage />} />
-      </Routes>
-    )
   }
 
   return (

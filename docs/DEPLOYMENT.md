@@ -77,24 +77,7 @@ deployed app is fully functional; nothing needs redeploying for the Google one.
    → *Sign-in method* → **Google** → toggle **Enable** → pick a support email → **Save**.
    This creates the OAuth web client that the handler at
    `medivault-gcp-23875.firebaseapp.com/__/auth/handler` needs. Email/password stays **disabled** —
-   Google is the only sign-in method.
-
-   **Phone** is enabled as well, but only as a *verification* mechanism: the app links a number to
-   the signed-in Google account, so Google sends the OTP and the verified value lands in the ID
-   token. It is not offered as a way to sign in. That provider can be toggled over the API:
-
-   ```bash
-   TOKEN=$(gcloud auth print-access-token)
-   curl -s -X PATCH \
-     -H "Authorization: Bearer $TOKEN" \
-     -H "x-goog-user-project: medivault-gcp-23875" \
-     -H "Content-Type: application/json" \
-     -d '{"signIn":{"phoneNumber":{"enabled":true}}}' \
-     "https://identitytoolkit.googleapis.com/admin/v2/projects/medivault-gcp-23875/config?updateMask=signIn.phoneNumber"
-   ```
-
-   Also add the two hosting domains to **Authorized domains** if phone verification reports
-   `auth/unauthorized-domain`.
+   Google is the only method.
 
 2. **Provision Cloud Storage for Firebase**
    <https://console.firebase.google.com/project/medivault-gcp-23875/storage>
@@ -134,33 +117,30 @@ Artifact Registry cleanup policy is set to keep 3 days of container images
 (`firebase functions:artifacts:setpolicy --location=asia-south1 --days=3`), which keeps the monthly
 bill at the free-tier end.
 
-### Turning on real SMS
+### Turning on real email
 
-The project ships without Twilio credentials, so every composed message is written to `smsOutbox`
-with `status: "logged"`. To send for real:
+The project ships without a SendGrid key, so every composed message is written to `mailOutbox` with
+`status: "logged"`. To send for real:
 
 ```bash
-# functions/.env  (git-ignored)
-TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_FROM=+14155550123
+firebase functions:secrets:set SENDGRID_API_KEY     # Settings > API Keys, Mail Send scope
+firebase functions:secrets:set MAIL_FROM            # a verified sender address
 ```
 
-Then redeploy only the functions, since the values are read as Cloud Run environment variables:
+Then redeploy only the functions, since the secrets are mounted as environment variables:
 
 ```bash
 npm run deploy:functions
-gcloud functions list --project=medivault-gcp-23875 --v2 \
-  --format="value(name)" | head
 ```
 
-Verify from the app: *Settings > Send a test SMS*. The result is the newest document in `smsOutbox`;
-`provider: "twilio"` plus `status: "sent"` means Twilio accepted it, and `status: "failed"` stores the
-carrier's reason in `error`. Delete a value to fall back to the outbox without redeploying code.
+Verify from the app: *Settings > Send a test email*. The result is the newest document in
+`mailOutbox`; `provider: "sendgrid"` plus `status: "sent"` means SendGrid accepted it, and
+`status: "failed"` stores the provider's reason in `error`. Delete a secret to fall back to the
+outbox without changing code.
 
-On a trial account, verify the destination number under *Phone Numbers > Verified caller IDs* and
-open the country under *Messaging > Geo permissions*, otherwise the API returns a 4xx that the
-function records as a failed delivery.
+A new SendGrid account is in "Single Sender Verification" mode: `MAIL_FROM` must be the address you
+verified under *Settings > Sender Authentication*, otherwise the API returns a 403 that the function
+records as a failed delivery.
 
 ---
 

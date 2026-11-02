@@ -42,14 +42,7 @@ export const api = {
   registerFcmToken: (token: string, remove = false) =>
     call<{ registered: boolean }>('registerFcmToken', { token, remove }),
 
-  sendTestSms: () => call<{ status: string; provider: string }>('sendTestSms'),
-
-  /** Copies the number Firebase Auth already verified onto the profile. */
-  syncPhone: () => call<{ phone: string; phoneVerified: boolean }>('syncPhone'),
-
-  /** Stores a number the user typed when verification could not run. */
-  savePhone: (phone: string) =>
-    call<{ phone: string; phoneVerified: boolean }>('savePhone', { phone }),
+  sendTestEmail: () => call<{ status: string; provider: string }>('sendTestEmail'),
 
   cloudHealth: () => call<CloudHealth>('cloudHealth'),
 }

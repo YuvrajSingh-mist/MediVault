@@ -43,6 +43,32 @@ export async function requestAlertPermission(): Promise<{
 }
 
 /**
+ * Desktop notifications are on by default: the app asks once instead of making
+ * the user find a switch. Browsers only accept the prompt from a gesture, so if
+ * the direct request is ignored we retry on the first click or key press.
+ */
+export async function armAlertPermission(): Promise<AlertPermission> {
+  const current = alertPermission()
+  if (current !== 'default') return current
+
+  try {
+    const permission = await Notification.requestPermission()
+    if (permission !== 'default') return permission as AlertPermission
+  } catch {
+    // Needs a gesture; the listener below handles it.
+  }
+
+  const ask = () => {
+    document.removeEventListener('pointerdown', ask)
+    document.removeEventListener('keydown', ask)
+    void Notification.requestPermission().catch(() => 'default')
+  }
+  document.addEventListener('pointerdown', ask, { once: true })
+  document.addEventListener('keydown', ask, { once: true })
+  return 'default'
+}
+
+/**
  * Shows a native notification. Returns false when the browser or the user's
  * permission settings do not allow it, so callers can fall back to the toast.
  */

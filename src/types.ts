@@ -3,7 +3,7 @@ import type { Timestamp } from 'firebase/firestore'
 export type UserRole = 'owner' | 'caregiver'
 
 export interface NotificationPrefs {
-  sms: boolean
+  email: boolean
   push: boolean
   dose: boolean
   lowStock: boolean
@@ -17,8 +17,6 @@ export interface UserProfile {
   displayName: string
   photoURL?: string
   phone?: string
-  /** Set by Cloud Functions only, after Firebase Auth proved the number. */
-  phoneVerified?: boolean
   timezone: string
   prefs?: Partial<NotificationPrefs>
   fcmTokens?: string[]
@@ -86,10 +84,11 @@ export interface DoseLog {
   loggedByRole?: UserRole
 }
 
-export interface SmsOutboxItem {
+export interface MailOutboxItem {
   id: string
   to: string | null
-  body: string
+  subject: string
+  text: string
   status: 'sent' | 'logged' | 'failed'
   provider: string
   tag?: string
@@ -108,7 +107,7 @@ export interface SweepSummary {
   scannedAppointments: number
   createdReminders: number
   notifiedUsers: number
-  smsSent: number
+  emailsSent: number
   pushesSent: number
   failures: number
   errors?: string[]
@@ -139,7 +138,7 @@ export interface CloudHealth {
   bucket: string | null
   firestoreOk: boolean
   latencyMs: number
-  smsProvider: string
+  mailProvider: string
   sweepWindowMinutes: number
   time: string
 }

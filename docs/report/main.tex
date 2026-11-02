@@ -163,13 +163,12 @@ This report describes \textbf{MediVault}, a medication and health-reminder syste
 Hosting} over Google's global CDN. Users sign in with \textbf{Firebase Authentication} (Google
 identity, so no password is ever stored by the application). Their medicines, dose plans,
 appointments, dose history and alerts live in \textbf{Cloud Firestore}, which also pushes every change
-to open browsers in real time. Inventory arithmetic, reminder generation and SMS or push fan-out all
+to open browsers in real time. Inventory arithmetic, reminder generation and email or push fan-out all
 run in \textbf{Cloud Functions (2nd generation)}, which are Cloud Run services underneath. \textbf{Cloud Scheduler} invokes the reminder engine every five minutes
 and the daily digest at 08:00 UTC. Alerts reach the user through four independent channels driven by a
 single Firestore document: an in-app toast, a desktop notification through the Web Notifications API, a
-web push through \textbf{Firebase Cloud Messaging} for closed tabs, and SMS through \textbf{Twilio}
-to a number proved with Firebase Authentication, with a Firestore outbox fallback so delivery stays
-auditable without third-party credentials.
+web push through \textbf{Firebase Cloud Messaging} for closed tabs, and email through \textbf{SendGrid},
+with a Firestore outbox fallback so delivery stays auditable without third-party credentials.
 
 The system is deployed, and it verifies itself. An automated end-to-end
 suite of \textbf{30 assertions} runs against the Firebase Emulator Suite with no mocks and covers
@@ -252,7 +251,7 @@ O2 & A complete medication record & Create, edit and delete medicines with dosag
 O3 & A trustworthy daily plan & Dashboard renders today's doses in the user's timezone with taken/skipped/pending state, and updates live \\
 O4 & Inventory that cannot drift & Dose logging is transactional; double taps and two open tabs cannot corrupt the count \\
 O5 & Proactive, idempotent reminders & A scheduled sweep raises dose, low-stock, expiry and 24-hour appointment alerts exactly once per period \\
-O6 & Reach the user wherever they are & One alert document drives in-app, desktop, web-push and SMS delivery \\
+O6 & Reach the user wherever they are & One alert document drives in-app, desktop, web-push and email delivery \\
 O7 & Make the cloud visible and verifiable & Deployed URL, live console evidence, and an automated suite that exercises the running backend \\
 \bottomrule
 \end{tabularx}
@@ -311,7 +310,7 @@ Sixteen Cloud Functions, second generation and therefore Cloud Run services, are
 \begin{enumerate}
   \item \textbf{Callables} from the browser: \texttt{ensureUserProfile}, \texttt{logDose},
         \texttt{runReminderSweepNow}, \texttt{seedDemoData}, \texttt{registerFcmToken},
-        \texttt{syncPhone}, \texttt{savePhone}, \texttt{sendTestSms}, \texttt{cloudHealth}.
+        \texttt{sendTestEmail}, \texttt{cloudHealth}.
   \item \textbf{Scheduled} by Cloud Scheduler: \texttt{sweepReminders} (every five minutes) and
         \texttt{dailyDigest} (08:00 UTC).
   \item \textbf{Event-driven} by Cloud Storage: \texttt{onPrescriptionUploaded} fires on object
@@ -381,7 +380,7 @@ Cloud Storage for Firebase & Private object store & \texttt{prescriptions/\{uid\
 Cloud Functions (2nd gen) & All trusted logic & Node.js 22, \texttt{asia-south1}, 256 MiB, \texttt{maxInstances: 10}; 16 functions \\
 Cloud Scheduler & Cron for the sweep and digest & \texttt{sweepReminders} every 5 minutes; \texttt{dailyDigest} \texttt{0 8 * * *}; both \texttt{ENABLED} \\
 Firebase Cloud Messaging & Web push to closed tabs & VAPID key pair; tokens stored on the profile; dead tokens pruned after a failed multicast \\
-Twilio (REST) & Transactional SMS & \texttt{TWILIO\_ACCOUNT\_SID}, \texttt{TWILIO\_AUTH\_TOKEN} and \texttt{TWILIO\_FROM}; outbox fallback when absent \\
+SendGrid (REST) & Transactional email & \texttt{SENDGRID\_API\_KEY} and \texttt{MAIL\_FROM} held as function secrets; outbox fallback when absent \\
 Cloud Logging & Structured operational logs & JSON payloads with \texttt{event}, \texttt{durationMs}, \texttt{createdReminders} \\
 Cloud Monitoring & Uptime and error-rate signals & Uptime check on the \texttt{/api} health endpoint \\
 IAM & Least-privilege runtime identity & Functions run as the default compute service account; no public bucket ACLs \\
@@ -429,7 +428,7 @@ rule into a single equality check.}
 
 Every collection carries the owning \texttt{userId},\texttt{medicines} and \texttt{appointments} are
 written by their owner and by nobody else, while \texttt{reminders}, \texttt{doseLogs} and
-\texttt{smsOutbox} are written only by the Admin SDK inside a function. \texttt{system/status} is a
+\texttt{mailOutbox} are written only by the Admin SDK inside a function. \texttt{system/status} is a
 single document holding the last run and the recent runs, which is what the operator page renders.
 
 \section{Deterministic identifiers}
@@ -471,7 +470,7 @@ match /reminders/{reminderId} {
   allow write: if false;   // creation belongs to the engine
 }
 
-match /smsOutbox/{smsId}   { allow read, write: if false; }
+match /mailOutbox/{mailId} { allow read, write: if false; }
 match /doseLogs/{logId}    { allow read: if isOwner(resource.data); allow write: if false; }
 \end{lstlisting}
 
@@ -493,7 +492,7 @@ Client lying about stock & Inventory arithmetic runs inside a transaction in \te
 Double-deducting inventory & Transaction reads the previous state and applies state-aware arithmetic; a repeated take is a no-op \\
 Duplicate notifications from scheduler retries & Deterministic identifiers plus create-if-absent \\
 Brute-forcing an upload path & Storage rules pin the folder to the caller's uid and cap size and content type \\
-Leaked SMS credentials & The Twilio auth token stays in the function environment and never enters the bundle; the outbox fallback keeps the demo working without it \\
+Leaked email credentials & SendGrid key lives in function secrets and never enters the bundle; the outbox fallback keeps the demo working without it \\
 Scripted abuse of callables & Input validation in every callable, a 20-second throttle on the manual sweep, and instance caps \\
 \bottomrule
 \end{tabularx}
@@ -586,7 +585,7 @@ async function raise(id, type, payload) {
   try { await db.collection('reminders').doc(id).create(payload) }
   catch (e) { if (e.code === 6) return   // ALREADY_EXISTS -> this period is handled
               throw e }
-  await fanOut(payload)                  // sms + push, recorded in channels[]
+  await fanOut(payload)                  // email + push, recorded in channels[]
 }
 \end{lstlisting}
 
@@ -607,12 +606,11 @@ collides with itself instead of notifying the patient twice.}
 \label{fig:sweep}
 \end{figure}
 
-SMS and push are attempted only for the channels the user has enabled, and each attempt is recorded on
+Email and push are attempted only for the channels the user has enabled, and each attempt is recorded on
 the alert document itself
-(\texttt{channels: ['in-app','sms:sent']}). SMS is sent only to a number Firebase Authentication has
-proved, so a typo or a spoofed profile field cannot turn the engine into a message relay. If Twilio is
-not configured, the composed message is written to \texttt{smsOutbox} with status \texttt{logged}, so
-the pipeline is demonstrable and auditable without a third-party account.
+(\texttt{channels: ['in-app','email:sent']}). If SendGrid is not configured, the composed message is
+written to \texttt{mailOutbox} with status \texttt{logged}, so the pipeline is demonstrable and auditable
+without a third-party account.
 
 \section{Browser and desktop alerts}
 
@@ -731,7 +729,7 @@ Engine & One sweep over 4 medicines and 2 appointments & 4 reminders: 1 dose, 2 
 Idempotency & A manual sweep repeated inside 20 s & \texttt{HTTP 429}, 0 rows written \\
 Storage trigger & A PDF upload is indexed into Firestore & 1 document, polled every 0.4 s \\
 Delegation & A linked caregiver reads the patient's medicine & \texttt{HTTP 200} \\
-SMS & \texttt{sendTestSms} records a message & 1 \texttt{smsOutbox} row \\
+Email & \texttt{sendTestEmail} records a message & 1 \texttt{mailOutbox} row \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -763,12 +761,12 @@ each row. Stock and expiry appear only when they need a decision, as a single li
 
 MediVault shows that a useful clinical tool can run on managed cloud primitives without anyone operating
 a server. Authentication is delegated to Firebase Authentication, authorisation to declarative security
-rules, scheduling to Cloud Scheduler, delivery to FCM and Twilio, and observability to Cloud Logging.
+rules, scheduling to Cloud Scheduler, delivery to FCM and SendGrid, and observability to Cloud Logging.
 What remains in the project's own code is the part that is easy to get wrong: doses are planned in the
 patient's timezone, the inventory counter survives concurrent taps, and an alert fires once per period
 because its document identifier is fixed in advance.
 
-The system is deployed at \appurl, uses ten Google Cloud services plus Twilio for SMS, and checks
+The system is deployed at \appurl, uses ten Google Cloud services plus SendGrid for email, and checks
 itself with 30 assertions against real emulated services. The scheduled engine completes in about 300 ms
 and the deployment stays inside the perpetual free tier.
 
@@ -785,9 +783,8 @@ and the deployment stays inside the perpetual free tier.
         snapshot but cannot log a dose.
   \item Callables are protected by authentication and validation, but there is no App Check, so a scripted
         client holding a valid token is limited only by the manual-sweep throttle.
-  \item SMS delivery depends on Twilio. Without it the outbox shows that a message was composed and
-        recorded, not that it arrived. Carriers in India additionally require DLT registration for
-        transactional traffic, which is an account-level obligation outside the code.
+  \item Email delivery depends on SendGrid. Without it the outbox shows that a message was composed and
+        recorded, not that it arrived.
   \item Semantic landmarks, labelled controls, live regions and keyboard reachability are in place, but no
         formal accessibility audit has been run.
 \end{enumerate}

@@ -4,7 +4,7 @@ const crypto = require('node:crypto')
 const { getFirestore, Timestamp, FieldValue } = require('firebase-admin/firestore')
 const { logger } = require('firebase-functions')
 const { zonedParts, parseHHMM, daysBetweenKeys, formatInZone, safeZone } = require('./time')
-const { sendSms, normalisePhone } = require('./sms')
+const { sendMail, wrapHtml } = require('./mailer')
 const { sendPush } = require('./push')
 
 /**
@@ -22,8 +22,8 @@ const { sendPush } = require('./push')
  * duplicated, retried or overlapping scheduler run can never notify twice -
  * that idempotency is what makes at-least-once scheduling safe.
  *
- * Created reminders are then grouped per user and delivered over SMS (Twilio
- * or the smsOutbox fallback) and Firebase Cloud Messaging.
+ * Created reminders are then grouped per user and delivered through email
+ * (SendGrid or the mailOutbox fallback) and Firebase Cloud Messaging.
  */
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173'
@@ -77,18 +77,13 @@ async function createReminder(id, data) {
 function prefsOf(user) {
   const prefs = (user && user.prefs) || {}
   return {
-    sms: prefs.sms !== false,
+    email: prefs.email !== false,
     push: prefs.push !== false,
     dose: prefs.dose !== false,
     lowStock: prefs.lowStock !== false,
     expiry: prefs.expiry !== false,
     appointments: prefs.appointments !== false,
   }
-}
-
-/** A number we are allowed to text: present and proved by Firebase Auth. */
-function textable(user) {
-  return Boolean(user && user.phoneVerified && normalisePhone(user.phone))
 }
 
 /* -------------------------------------------------------------------------- */
@@ -102,7 +97,7 @@ async function sweep({ trigger = 'scheduled', now = new Date(), actorUid = null 
     scannedAppointments: 0,
     createdReminders: 0,
     notifiedUsers: 0,
-    smsSent: 0,
+    emailsSent: 0,
     pushesSent: 0,
     failures: 0,
   }
@@ -292,15 +287,22 @@ async function sweep({ trigger = 'scheduled', now = new Date(), actorUid = null 
       const channels = []
 
       try {
-        if (prefs.sms && textable(user)) {
-          const result = await sendSms({
-            to: user.phone,
+        if (prefs.email && user.email) {
+          const result = await sendMail({
+            to: user.email,
             toUid: userId,
-            body: textSms(items),
+            subject: `MediVault · ${items.length} reminder${items.length === 1 ? '' : 's'} for you`,
+            text: textEmail(user, items),
+            html: wrapHtml(
+              `${items.length} reminder${items.length === 1 ? '' : 's'}`,
+              `Hello ${user.displayName || 'there'}, here is what needs your attention:`,
+              items.map((item) => `${item.title} — ${item.body}`),
+              `You are receiving this because reminder emails are enabled in MediVault. Update preferences in Settings. ${APP_URL}`,
+            ),
             tag: 'reminder-sweep',
           })
-          if (result.status === 'sent') stats.smsSent += 1
-          channels.push(`sms:${result.status}`)
+          if (result.status === 'sent') stats.emailsSent += 1
+          channels.push(`email:${result.status}`)
         }
 
         if (prefs.push && Array.isArray(user.fcmTokens) && user.fcmTokens.length > 0) {
@@ -369,14 +371,18 @@ async function sweep({ trigger = 'scheduled', now = new Date(), actorUid = null 
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
 
-/**
- * One billable SMS: the first reminder in full, a count for the rest, and the
- * app link. `sendSms` clamps the result to 160 characters.
- */
-function textSms(items) {
-  const head = items[0]
-  const rest = items.length > 1 ? ` +${items.length - 1} more` : ''
-  return `MediVault: ${head.title} - ${head.body}${rest} ${APP_URL}`
+function textEmail(user, items) {
+  const lines = [
+    `Hello ${user.displayName || 'there'},`,
+    '',
+    'Here is what needs your attention:',
+    '',
+    ...items.map((item) => `• ${item.title} — ${item.body}`),
+    '',
+    `Open MediVault: ${APP_URL}`,
+    'You can change reminder preferences in Settings.',
+  ]
+  return lines.join('\n')
 }
 
 async function loadUsers(uids) {
@@ -446,7 +452,7 @@ function logSummary(summary) {
     scannedAppointments: summary.scannedAppointments,
     createdReminders: summary.createdReminders,
     notifiedUsers: summary.notifiedUsers,
-    smsSent: summary.smsSent,
+    emailsSent: summary.emailsSent,
     pushesSent: summary.pushesSent,
     failures: summary.failures,
   }
@@ -460,16 +466,16 @@ function logSummary(summary) {
 
 async function dailyDigest({ now = new Date() } = {}) {
   const usersSnap = await db().collection('users').limit(SCOPE_LIMIT).get()
-  const results = { users: 0, smsSent: 0, pushesSent: 0, skipped: 0 }
+  const results = { users: 0, emailsSent: 0, pushesSent: 0, skipped: 0 }
 
   for (const userDoc of usersSnap.docs) {
     const user = userDoc.data()
-    if (!textable(user)) {
+    if (!user.email) {
       results.skipped += 1
       continue
     }
     const prefs = prefsOf(user)
-    if (!prefs.sms && !prefs.push) {
+    if (!prefs.email && !prefs.push) {
       results.skipped += 1
       continue
     }
@@ -522,14 +528,16 @@ async function dailyDigest({ now = new Date() } = {}) {
         ...(expiring > 0 ? [`${expiring} medicine${expiring === 1 ? '' : 's'} expire within 30 days`] : []),
       ]
 
-      if (prefs.sms) {
-        const result = await sendSms({
-          to: user.phone,
+      if (prefs.email) {
+        const result = await sendMail({
+          to: user.email,
           toUid: userDoc.id,
-          body: `MediVault ${dateKey}: ${bullets.length} item${bullets.length === 1 ? '' : 's'} - ${bullets[0]} ${APP_URL}`,
+          subject: `MediVault · your day at a glance (${dateKey})`,
+          text: bullets.map((line) => `• ${line}`).join('\n'),
+          html: wrapHtml('Your day at a glance', `Good morning ${user.displayName || ''}, here is your plan for ${dateKey}.`, bullets, `Open MediVault: ${APP_URL}`),
           tag: 'daily-digest',
         })
-        if (result.status === 'sent') results.smsSent += 1
+        if (result.status === 'sent') results.emailsSent += 1
       }
 
       if (prefs.push && Array.isArray(user.fcmTokens) && user.fcmTokens.length > 0) {

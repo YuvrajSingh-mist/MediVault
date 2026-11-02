@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthProvider'
 import { useNow, useReminders, useUnreadCount } from '../lib/data'
+import { armAlertPermission } from '../lib/alerts'
 import { longDate } from '../lib/format'
 import { USE_EMULATORS, PROJECT_ID } from '../lib/firebase'
 import { BrandMark, Icon, type IconName } from './Icons'
@@ -32,6 +33,12 @@ export function Layout() {
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
   }, [menuOpen])
+
+  // Desktop notifications are on from the first visit; this asks once.
+  useEffect(() => {
+    if (!user) return
+    void armAlertPermission()
+  }, [user])
 
   const primary: NavItem[] = [
     { to: '/', label: 'Dashboard', icon: 'dashboard', end: true },

@@ -77,7 +77,7 @@ export function AppointmentsPage() {
     <>
       <PageHeader
         title="Appointments"
-        subtitle="A reminder 24 hours before each visit, by SMS and push."
+        subtitle="A reminder 24 hours before each visit, by email and push."
         actions={
           <Button icon="plus" onClick={() => setCreating(true)}>
             Add appointment
