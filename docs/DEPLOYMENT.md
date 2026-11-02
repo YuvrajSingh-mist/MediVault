@@ -125,14 +125,26 @@ bill at the free-tier end.
 npm run verify:deployed
 ```
 
-`scripts/verify-deployed.mjs` runs 25 assertions against the real project — no emulator involved:
+`scripts/verify-deployed.mjs` checks the real project — no emulator involved. Six assertions run
+every time, without credentials:
 
 * Firebase Hosting serves the SPA over HTTPS and the bundle is wired to `medivault-gcp-23875`.
-* Identity Toolkit issues ID tokens for two accounts.
+* The bundle carries no emulator hostnames.
 * The Cloud Run HTTP endpoint `api` reports `status: ok` with Firestore reachable.
-* `ensureUserProfile` provisions `users/{uid}`, and rules let the owner read it.
+* Callables reject an anonymous caller (401) and rules reject an anonymous read (401).
+
+The remaining assertions need two real sessions, because Google is the only enabled identity
+provider:
+
+```bash
+VERIFY_ID_TOKEN="<patient id token>" VERIFY_CAREGIVER_TOKEN="<caregiver id token>" npm run verify:deployed
+```
+
+With those tokens:
+
+* Identity Toolkit's token is accepted and `ensureUserProfile` provisions `users/{uid}`; rules let the owner read it.
 * `seedDemoData` writes 4 medicines + 2 appointments; Atorvastatin lands below its refill threshold.
-* Rules deny a stranger (403), deny an unfiltered collection scan (403), deny anonymous (401).
+* Rules deny a stranger (403) and deny an unfiltered collection scan (403).
 * `runReminderSweepNow` raises reminders, writes `system/status` telemetry.
 * `logDose` decrements stock transactionally, is idempotent, and undo restores it.
 * Caregiver code generation + redemption links the pair; rules then grant read and still deny writes.
@@ -140,9 +152,9 @@ npm run verify:deployed
   `text/plain` upload is rejected.
 * `cloudHealth` reports `nodejs22 · asia-south1 · <bucket>`.
 
-> The script signs in with email/password through the Identity Toolkit REST API. That provider is
-> **disabled** on the project (Google only), so temporarily enable it for a verification run and
-> disable it again afterwards. The browser app never offers anything but Google.
+> Email/password is disabled on this project, so the script cannot create throwaway accounts. Grab
+> the tokens from a signed-in browser session (`firebase.auth().currentUser.getIdToken()` in the
+> console) or leave them unset and accept the skip.
 
 ---
 

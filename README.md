@@ -168,7 +168,15 @@ scheduler setup used for the live instance.
 To check a deployment rather than the emulators:
 
 ```bash
-npm run verify:deployed              # signs in through Identity Toolkit and calls the live functions
+npm run verify:deployed              # public surface: hosting, /api, rules denial
+```
+
+The script always checks the deployed hosting bundle, the Cloud Run health endpoint and the
+anonymous-denial paths. The signed-in assertions need two real sessions, because Google is the
+only enabled provider:
+
+```bash
+VERIFY_ID_TOKEN="<patient id token>" VERIFY_CAREGIVER_TOKEN="<caregiver id token>" npm run verify:deployed
 ```
 
 ## Data model
