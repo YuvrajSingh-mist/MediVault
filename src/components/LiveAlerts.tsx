@@ -73,7 +73,7 @@ export function LiveAlerts() {
       notify(item)
     })
     if (fresh.length > 3) {
-      toast(`${fresh.length - 3} more alerts arrived — open Alerts to see them.`, 'default')
+      toast(`${fresh.length - 3} more alerts arrived. Open Alerts to see them.`, 'default')
     }
     writeSeenAlerts(uid, seenRef.current)
   }, [reminders, activeUserId, toast, navigate])

@@ -117,7 +117,7 @@ export function MedicinesPage() {
     <>
       <PageHeader
         title="Medicines"
-        subtitle="Doses, stock levels and expiry dates, all in one place."
+        subtitle="Your medicines, stock and expiry dates."
         actions={
           <Button icon="plus" onClick={() => setCreating(true)}>
             Add medicine
@@ -175,7 +175,7 @@ export function MedicinesPage() {
             title={medicines.length === 0 ? 'No medicines yet' : 'Nothing matches this filter'}
             message={
               medicines.length === 0
-                ? 'Add your first medicine to start building a schedule. Each dose time becomes a reminder, delivered by Cloud Scheduler.'
+                ? 'Add your first medicine to start a schedule. Each dose time becomes a reminder.'
                 : 'Try a different search term or filter.'
             }
             action={
@@ -267,8 +267,8 @@ export function MedicinesPage() {
                   <div className="alert-box warn" style={{ fontSize: 12 }}>
                     <Icon name="alert" size={14} />
                     <span>
-                      Only {pluralize(medicine.remainingTablets, 'tablet')} left — the reminder engine
-                      will nudge you daily until you refill.
+                      Only {pluralize(medicine.remainingTablets, 'tablet')} left. MediVault will remind
+                      you daily until you refill.
                     </span>
                   </div>
                 ) : null}
@@ -298,8 +298,8 @@ export function MedicinesPage() {
         title={`Delete ${deleteTarget?.name || 'medicine'}?`}
         message={
           <>
-            This removes the medicine, its schedule and its history from Firestore. Alerts that were
-            already delivered stay in your alert feed. This cannot be undone.
+            This removes the medicine, its schedule and its history. Alerts already delivered stay
+            in your alert feed. This cannot be undone.
           </>
         }
         loading={deleting}
@@ -461,7 +461,7 @@ function MedicineForm({
       open={open}
       onClose={onClose}
       title={medicine ? `Edit ${medicine.name}` : 'Add a medicine'}
-      subtitle="Dose times are evaluated in your profile timezone and become Cloud Scheduler reminders."
+      subtitle="Dose times follow your profile timezone."
       wide
       footer={
         <>
@@ -614,7 +614,7 @@ function MedicineForm({
         </div>
 
         <div className="span-2">
-          <Field label="Notes" htmlFor="med-notes" hint="Optional — instructions, prescriber, side effects.">
+          <Field label="Notes" htmlFor="med-notes" hint="Optional: instructions, prescriber, side effects.">
             <Textarea
               id="med-notes"
               value={notes}
@@ -629,7 +629,7 @@ function MedicineForm({
             checked={active}
             onChange={setActive}
             label="Active medicine"
-            description="Inactive medicines stay in your vault but are skipped by the reminder engine."
+            description="Inactive medicines stay listed and stop sending reminders."
           />
         </div>
       </div>

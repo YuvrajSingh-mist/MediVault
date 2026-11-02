@@ -77,7 +77,7 @@ export function AppointmentsPage() {
     <>
       <PageHeader
         title="Appointments"
-        subtitle="Doctor visits get a reminder 24 hours before, delivered by email and push."
+        subtitle="A reminder 24 hours before each visit, by SMS and push."
         actions={
           <Button icon="plus" onClick={() => setCreating(true)}>
             Add appointment
@@ -101,7 +101,7 @@ export function AppointmentsPage() {
             <EmptyState
               icon="calendar"
               title="No upcoming appointments"
-              message="Add a visit with a date and time — MediVault will remind you the day before."
+              message="Add a visit with a date and time. MediVault reminds you the day before."
               action={
                 <Button icon="plus" variant="soft" size="sm" onClick={() => setCreating(true)}>
                   Add appointment
@@ -338,7 +338,7 @@ function AppointmentForm({
       open={open}
       onClose={onClose}
       title="Add an appointment"
-      subtitle="A reminder is created automatically once the visit is within 24 hours."
+      subtitle="A reminder is created automatically 24 hours before the visit."
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={saving}>
@@ -407,7 +407,7 @@ function AppointmentForm({
         </Field>
 
         <div className="span-2">
-          <Field label="Notes" htmlFor="appt-notes" hint="Optional — what to bring, tests, questions.">
+          <Field label="Notes" htmlFor="appt-notes" hint="Optional: what to bring, tests, questions.">
             <Textarea
               id="appt-notes"
               value={notes}

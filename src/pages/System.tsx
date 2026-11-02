@@ -118,7 +118,7 @@ export function SystemPage() {
     <>
       <PageHeader
         title="Cloud status"
-        subtitle="Live evidence that the serverless pieces are connected — for the demo and the report."
+        subtitle="What the Cloud Functions, scheduler and SMS sender are doing right now."
         actions={
           <>
             <Button variant="ghost" icon="refresh" onClick={() => void loadHealth()} loading={loadingHealth}>
@@ -135,7 +135,7 @@ export function SystemPage() {
         <div style={{ marginBottom: 16 }}>
           <AlertBox tone="warn" icon="info">
             You are on the local Firebase Emulator Suite. Everything below is real behaviour of the
-            same code that runs on Google Cloud — deploy with <span className="mono">npm run deploy</span>{' '}
+            same code that runs on Google Cloud. Deploy with <span className="mono">npm run deploy</span>{' '}
             to point this page at your GCP project.
           </AlertBox>
         </div>
@@ -149,7 +149,7 @@ export function SystemPage() {
           <div>
             <div className="stat-label">Functions region</div>
             <div className="stat-value" style={{ fontSize: 18 }}>
-              {health?.region || '—'}
+              {health?.region || '-'}
             </div>
             <div className="stat-sub">revision {health?.revision || '…'}</div>
           </div>
@@ -161,7 +161,7 @@ export function SystemPage() {
           <div>
             <div className="stat-label">Firestore round-trip</div>
             <div className="stat-value" style={{ fontSize: 18 }}>
-              {health ? `${health.latencyMs} ms` : '—'}
+              {health ? `${health.latencyMs} ms` : '-'}
             </div>
             <div className="stat-sub">{health?.firestoreOk ? 'read succeeded' : 'not reachable'}</div>
           </div>
@@ -173,7 +173,7 @@ export function SystemPage() {
           <div>
             <div className="stat-label">Last scheduler run</div>
             <div className="stat-value" style={{ fontSize: 18 }}>
-              {lastRun?.durationMs !== undefined ? `${lastRun.durationMs} ms` : '—'}
+              {lastRun?.durationMs !== undefined ? `${lastRun.durationMs} ms` : '-'}
             </div>
             <div className="stat-sub">
               {lastRun?.finishedAt ? relativeTime(lastRun.finishedAt) : 'waiting for first run'}
@@ -256,7 +256,7 @@ export function SystemPage() {
                 detail={
                   health?.smsProvider === 'twilio'
                     ? 'Twilio credentials configured'
-                    : 'No Twilio credentials — messages recorded in smsOutbox'
+                    : 'No Twilio credentials. Messages are recorded in smsOutbox.'
                 }
                 ok={Boolean(health)}
                 warn={health?.smsProvider !== 'twilio'}

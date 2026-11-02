@@ -85,7 +85,7 @@ export function timeLabel(value: string): string {
 
 export function formatDate(value: DateLike, timeZone?: string): string {
   const date = toDate(value)
-  if (!date) return '—'
+  if (!date) return '-'
   return new Intl.DateTimeFormat('en-GB', {
     timeZone: safeZone(timeZone),
     weekday: 'short',
@@ -97,7 +97,7 @@ export function formatDate(value: DateLike, timeZone?: string): string {
 
 export function formatDateTime(value: DateLike, timeZone?: string): string {
   const date = toDate(value)
-  if (!date) return '—'
+  if (!date) return '-'
   return new Intl.DateTimeFormat('en-GB', {
     timeZone: safeZone(timeZone),
     day: '2-digit',
@@ -110,7 +110,7 @@ export function formatDateTime(value: DateLike, timeZone?: string): string {
 
 export function formatTime(value: DateLike, timeZone?: string): string {
   const date = toDate(value)
-  if (!date) return '—'
+  if (!date) return '-'
   return new Intl.DateTimeFormat('en-GB', {
     timeZone: safeZone(timeZone),
     hour: '2-digit',
@@ -159,7 +159,7 @@ export function daysUntil(target: DateLike, timeZone?: string, from: Date = new 
 
 export function relativeTime(value: DateLike): string {
   const date = toDate(value)
-  if (!date) return '—'
+  if (!date) return '-'
   const diffMs = date.getTime() - Date.now()
   const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
   const table: Array<[Intl.RelativeTimeFormatUnit, number]> = [

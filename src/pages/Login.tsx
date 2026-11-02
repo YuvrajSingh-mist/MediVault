@@ -132,7 +132,7 @@ export function LoginPage() {
           </p>
 
           {USE_EMULATORS ? (
-            <div className="demo-note">Emulator mode — nothing leaves this machine.</div>
+            <div className="demo-note">Emulator mode. Nothing leaves this machine.</div>
           ) : !CLOUD_CONFIGURED ? (
             <div className="demo-note">
               No Firebase keys in <span className="mono">.env.local</span>.

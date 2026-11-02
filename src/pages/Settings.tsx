@@ -62,22 +62,22 @@ const PREF_LABELS: Array<{ key: keyof NotificationPrefs; label: string; descript
   {
     key: 'sms',
     label: 'SMS reminders',
-    description: 'One short text per sweep, sent to your verified number. Delivered by Twilio, or recorded in the SMS outbox when no credentials are set.',
+    description: 'A short text when something is due.',
   },
   {
     key: 'push',
     label: 'Browser & mobile push',
-    description: 'Firebase Cloud Messaging notifications to every device you register.',
+    description: 'Pop-ups on every device you turn on.',
   },
   {
     key: 'dose',
     label: 'Dose reminders',
-    description: 'A nudge at each scheduled medicine time in your local timezone.',
+    description: 'A nudge at each scheduled medicine time.',
   },
   {
     key: 'lowStock',
     label: 'Low stock alerts',
-    description: 'When a medicine reaches its refill threshold, once per day until replenished.',
+    description: 'When stock reaches your refill level, once a day.',
   },
   {
     key: 'expiry',
@@ -176,7 +176,7 @@ export function SettingsPage() {
     const shown = showBrowserAlert('MediVault · test alert', 'Website alerts are working on this device.', {
       tag: 'medivault-test',
     })
-    if (shown) toast('Sent — check your desktop notifications.', 'success')
+    if (shown) toast('Sent. Check your desktop notifications.', 'success')
     else toast('Enable website alerts first.', 'error')
   }
 
@@ -285,7 +285,7 @@ export function SettingsPage() {
           <Card>
             <CardHead
               title="Your profile"
-              subtitle="Stored in users/{uid} in Cloud Firestore."
+              subtitle="Your name, number and timezone."
               actions={<Badge tone="brand">{profile?.email || user?.email}</Badge>}
             />
             <div className="card-pad">
@@ -313,8 +313,8 @@ export function SettingsPage() {
                   htmlFor="profile-phone"
                   hint={
                     profile?.phoneVerified
-                      ? 'Verified — SMS reminders go here.'
-                      : 'Not verified — no texts are sent yet.'
+                      ? 'Verified. Texts go to this number.'
+                      : 'Not verified, so no texts are sent.'
                   }
                 >
                   <Input id="profile-phone" value={profile?.phone ? prettyPhone(profile.phone) : 'Not set'} readOnly />
@@ -323,7 +323,7 @@ export function SettingsPage() {
                   <Field
                     label="Schedule timezone"
                     htmlFor="profile-tz"
-                    hint="Dose times are wall-clock times in this zone — Cloud Scheduler converts them on every sweep."
+                    hint="Dose times use this timezone."
                   >
                     <Select
                       id="profile-tz"
@@ -345,14 +345,14 @@ export function SettingsPage() {
                   Save profile
                 </Button>
                 <Button variant="ghost" onClick={() => void api.ensureProfile({})}>
-                  Sync with Auth
+                  Refresh profile
                 </Button>
               </div>
             </div>
           </Card>
 
           <Card>
-            <CardHead title="Notifications" subtitle="Preferences live on your profile and are read by the reminder engine." />
+            <CardHead title="Notifications" subtitle="Choose what MediVault reminds you about." />
             <div className="card-pad" style={{ paddingTop: 4, paddingBottom: 4 }}>
               {PREF_LABELS.map((item) => (
                 <Toggle
@@ -371,13 +371,11 @@ export function SettingsPage() {
           <Card>
             <CardHead
               title="Website alerts"
-              subtitle="In-app toasts and desktop notifications — no key required"
+              subtitle="Pop-ups while the page is open"
             />
             <div className="card-pad">
               <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 12 }}>
-                The app watches your own <span className="mono">reminders</span> collection live, so a
-                sweep wakes the page instantly. Allow notifications to also get a desktop pop-up while
-                the tab is in the background.
+                Allow notifications and a new alert pops up even when the tab is in the background.
               </p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <Button
@@ -419,8 +417,8 @@ export function SettingsPage() {
             <CardHead title="Push notifications" subtitle={`${registeredDevices} device${registeredDevices === 1 ? '' : 's'} registered`} />
             <div className="card-pad">
               <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 12 }}>
-                Register this browser with Firebase Cloud Messaging. Tokens are stored on your profile
-                and invalidated tokens are pruned automatically after a failed send.
+                Turn on pop-ups for this browser. Each device is saved on your profile, and dead
+                ones are removed automatically.
               </p>
               <Button
                 variant="soft"
@@ -449,7 +447,7 @@ export function SettingsPage() {
           <Card>
             <CardHead
               title="Mobile number"
-              subtitle="Reminders are sent by SMS to this number"
+              subtitle="SMS reminders go to this number"
               actions={
                 <Badge tone={profile?.phoneVerified ? 'brand' : 'amber'} dot>
                   {profile?.phoneVerified ? 'Verified' : 'Not verified'}
@@ -460,7 +458,7 @@ export function SettingsPage() {
               <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 12 }}>
                 {profile?.phoneVerified
                   ? `Texts go to ${profile.phone ? prettyPhone(profile.phone) : 'your number'}. Verifying a new one replaces it.`
-                  : 'This number is on file but unproved, so the reminder engine will not text it. Verify it to switch SMS on.'}
+                  : 'This number is saved but not verified, so no texts are sent. Verify it to turn SMS on.'}
               </p>
 
               {phoneStage === 'idle' ? (
@@ -484,8 +482,7 @@ export function SettingsPage() {
                       <AlertBox tone="warn" icon="alert">
                         <div style={{ marginBottom: 8 }}>
                           Sending a code removes {profile?.phone ? prettyPhone(profile.phone) : 'the current number'}{' '}
-                          from this account first. If the new number is never verified, SMS reminders stay off
-                          until you verify again.
+                          first. SMS stays off until the new number is verified.
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                           <Button size="sm" onClick={() => void sendPhoneCode(true)} loading={phoneBusy}>
@@ -535,9 +532,9 @@ export function SettingsPage() {
             <CardHead title="SMS delivery" subtitle="Twilio via Cloud Functions" />
             <div className="card-pad">
               <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 12 }}>
-                Without Twilio credentials the function still composes the message and writes it to
-                <span className="mono"> smsOutbox</span> with status <span className="mono">logged</span>.
-                That makes delivery demonstrable offline — and auditable in production.
+                With no Twilio credentials a message is saved in
+                <span className="mono"> smsOutbox</span> with status <span className="mono">logged</span>{' '}
+                instead of being sent.
               </p>
               <Button
                 variant="ghost"

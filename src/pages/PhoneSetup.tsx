@@ -142,7 +142,7 @@ export function PhoneSetupPage() {
                 <Field
                   label="Mobile number"
                   htmlFor="onboarding-phone"
-                  hint="India numbers can be typed as 98765 43210 — the +91 is added for you."
+                  hint="India numbers can be typed as 98765 43210. We add the +91."
                 >
                   <Input
                     id="onboarding-phone"
@@ -209,8 +209,8 @@ export function PhoneSetupPage() {
 
             {profile?.phone && !profile?.phoneVerified ? (
               <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 14, lineHeight: 1.6 }}>
-                Already saved a number? Saving without verifying keeps you in the app, but no texts are
-                sent until the code is confirmed — you can finish that in Settings afterwards.
+                Already saved a number? Saving without verifying keeps you in the app, but no texts
+                are sent until the code is confirmed. You can finish that in Settings.
               </p>
             ) : null}
           </div>

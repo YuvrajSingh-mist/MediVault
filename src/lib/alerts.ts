@@ -34,7 +34,7 @@ export async function requestAlertPermission(): Promise<{
   }
   const permission = await Notification.requestPermission()
   if (permission === 'granted') {
-    return { permission: 'granted', message: 'Website alerts enabled — you will see doses and refills as they fire.' }
+    return { permission: 'granted', message: 'Website alerts on. Doses and refills will pop up as they arrive.' }
   }
   return {
     permission: permission as AlertPermission,

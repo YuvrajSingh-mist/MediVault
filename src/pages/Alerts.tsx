@@ -3,9 +3,9 @@ import { doc, serverTimestamp, writeBatch } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthProvider'
 import { useToast } from '../context/ToastProvider'
-import { refreshData, useReminders, useUnreadCount } from '../lib/data'
+import { useReminders, useUnreadCount } from '../lib/data'
 import { alertPermission, requestAlertPermission } from '../lib/alerts'
-import { api, errorMessage } from '../lib/api'
+import { errorMessage } from '../lib/api'
 import { formatDateTime, relativeTime } from '../lib/format'
 import type { Reminder, ReminderType } from '../types'
 import { Icon } from '../components/Icons'
@@ -37,7 +37,6 @@ export function AlertsPage() {
   const reminders = useReminders(activeUserId, 80)
   const unread = useUnreadCount(reminders)
   const [filter, setFilter] = useState<Filter>('all')
-  const [sweeping, setSweeping] = useState(false)
   const [marking, setMarking] = useState(false)
   const [alertsOn, setAlertsOn] = useState(() => alertPermission() === 'granted')
 
@@ -82,24 +81,6 @@ export function AlertsPage() {
     }
   }
 
-  async function runSweep() {
-    setSweeping(true)
-    try {
-      const summary = await api.runSweepNow()
-      refreshData()
-      toast(
-        summary.createdReminders > 0
-          ? `Sweep done · ${summary.createdReminders} new alert(s) in ${summary.durationMs} ms.`
-          : `Sweep done in ${summary.durationMs} ms — nothing due in this window.`,
-        'success',
-      )
-    } catch (err) {
-      toast(errorMessage(err), 'error')
-    } finally {
-      setSweeping(false)
-    }
-  }
-
   const counts = useMemo(() => {
     const list = reminders || []
     return {
@@ -116,7 +97,7 @@ export function AlertsPage() {
     <>
       <PageHeader
         title="Alerts"
-        subtitle="Every alert is produced by the reminder engine and stored in Firestore — email and push delivery channels are recorded on each document."
+        subtitle="Doses, refills, expiring medicines and visits that need your attention."
         actions={
           <>
             {!alertsOn ? (
@@ -132,9 +113,6 @@ export function AlertsPage() {
               disabled={!unread}
             >
               Mark all read
-            </Button>
-            <Button icon="refresh" onClick={runSweep} loading={sweeping}>
-              Run sweep
             </Button>
           </>
         }
@@ -186,15 +164,8 @@ export function AlertsPage() {
             title={counts.all === 0 ? 'No alerts yet' : 'Nothing in this view'}
             message={
               counts.all === 0
-                ? 'Cloud Scheduler checks doses, stock, expiry and appointments every five minutes. You can also run the sweep manually to see it happen now.'
+                ? 'MediVault checks doses, stock, expiry and visits every five minutes. New alerts show up here by themselves.'
                 : 'Try another filter, or mark alerts as read to clear this view.'
-            }
-            action={
-              counts.all === 0 ? (
-                <Button icon="refresh" variant="soft" size="sm" onClick={runSweep} loading={sweeping}>
-                  Run a sweep now
-                </Button>
-              ) : null
             }
           />
         ) : (
@@ -244,11 +215,6 @@ export function AlertsPage() {
           </div>
         )}
       </Card>
-
-      <p style={{ marginTop: 14, fontSize: 11.5, color: 'var(--muted-2)' }}>
-        Alert ids are deterministic (e.g. <span className="mono">dose_&lt;medicineId&gt;_&lt;date&gt;_0800</span>),
-        which makes the scheduler idempotent: retries can never duplicate a notification.
-      </p>
     </>
   )
 }
