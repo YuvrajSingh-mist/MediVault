@@ -4,7 +4,7 @@ import { db } from '../lib/firebase'
 import { useAuth } from '../context/AuthProvider'
 import { useToast } from '../context/ToastProvider'
 import { useReminders, useUnreadCount } from '../lib/data'
-import { alertPermission, requestAlertPermission } from '../lib/alerts'
+import { alertEnabled, alertPermission, requestAlertPermission, setAlertEnabled } from '../lib/alerts'
 import { errorMessage } from '../lib/api'
 import { formatDateTime, relativeTime } from '../lib/format'
 import type { Reminder, ReminderType } from '../types'
@@ -38,12 +38,26 @@ export function AlertsPage() {
   const unread = useUnreadCount(reminders)
   const [filter, setFilter] = useState<Filter>('all')
   const [marking, setMarking] = useState(false)
-  const [alertsOn, setAlertsOn] = useState(() => alertPermission() === 'granted')
+  const [alertsOn, setAlertsOn] = useState(() => alertPermission() === 'granted' && alertEnabled())
 
   async function enableAlerts() {
+    if (alertPermission() === 'granted') {
+      setAlertEnabled(true)
+      setAlertsOn(true)
+      toast('Website alerts back on for this device.', 'success')
+      return
+    }
     const result = await requestAlertPermission()
-    setAlertsOn(result.permission === 'granted')
-    toast(result.message, result.permission === 'granted' ? 'success' : 'error')
+    const on = result.permission === 'granted'
+    if (on) setAlertEnabled(true)
+    setAlertsOn(on)
+    toast(result.message, on ? 'success' : 'error')
+  }
+
+  function disableAlerts() {
+    setAlertEnabled(false)
+    setAlertsOn(false)
+    toast('Website alerts off. New alerts still appear in this list.', 'default')
   }
 
   const filtered = useMemo(() => {
@@ -100,11 +114,13 @@ export function AlertsPage() {
         subtitle="Doses, refills, expiring medicines and visits that need your attention."
         actions={
           <>
-            {!alertsOn ? (
-              <Button variant="ghost" icon="bell" onClick={enableAlerts}>
-                Enable website alerts
-              </Button>
-            ) : null}
+            <Button
+              variant="ghost"
+              icon="bell"
+              onClick={alertsOn ? disableAlerts : () => void enableAlerts()}
+            >
+              {alertsOn ? 'Turn off website alerts' : 'Turn on website alerts'}
+            </Button>
             <Button
               variant="ghost"
               icon="check"

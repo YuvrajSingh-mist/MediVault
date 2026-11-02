@@ -389,39 +389,85 @@ function MedicineForm({
     setTimes((current) => current.filter((time) => time !== value))
   }
 
+  /*
+   * A pack cannot hold fewer tablets than the user says are left, so every
+   * stock value is checked as a whole number and against the pack size before
+   * anything is written. The old code quietly raised the pack size to fit, which
+   * hid typos instead of flagging them.
+   */
+  const stockErrors = (() => {
+    const issues: { remaining?: string; total?: string; threshold?: string } = {}
+    const check = (raw: string, label: string): number | null => {
+      const trimmed = raw.trim()
+      if (!trimmed) return 0
+      if (!/^\d{1,6}$/.test(trimmed)) {
+        issues[label as 'remaining' | 'total' | 'threshold'] = 'Use a whole number, 0 or more.'
+        return null
+      }
+      return Number(trimmed)
+    }
+    const remainingValue = check(remaining, 'remaining')
+    const totalValue = check(total, 'total')
+    const thresholdValue = check(threshold, 'threshold')
+
+    if (remainingValue !== null && totalValue !== null) {
+      if (totalValue === 0 && remainingValue > 0) {
+        issues.total = 'Set the pack size before counting remaining tablets.'
+      } else if (remainingValue > totalValue) {
+        issues.remaining = `Only ${totalValue} in the pack, so ${remainingValue} left is not possible.`
+      }
+    }
+    if (thresholdValue !== null && totalValue !== null && totalValue > 0 && thresholdValue > totalValue) {
+      issues.threshold = `Refill threshold cannot be above the pack size (${totalValue}).`
+    }
+    return { issues, remainingValue, totalValue, thresholdValue }
+  })()
+
+  const stockProblem =
+    stockErrors.issues.remaining || stockErrors.issues.total || stockErrors.issues.threshold || null
+
   async function save() {
     setError(null)
     if (!name.trim()) {
       setError('Give the medicine a name.')
       return
     }
+    if (name.trim().length > 80) {
+      setError('Medicine name is too long. Keep it under 80 characters.')
+      return
+    }
+    if (dosage.trim().length > 40) {
+      setError('Dosage is too long. Keep it under 40 characters.')
+      return
+    }
+    if (notes.trim().length > 600) {
+      setError('Notes are too long. Keep them under 600 characters.')
+      return
+    }
+    if (times.length > 12) {
+      setError('That is a lot of doses. Keep it to 12 times a day or fewer.')
+      return
+    }
     if (times.length === 0 && active) {
       setError('Add at least one daily dose time, or mark the medicine inactive.')
       return
     }
-    const remainingValue = Number(remaining)
-    const totalValue = Number(total)
-    const thresholdValue = Number(threshold)
-    if (
-      !Number.isFinite(remainingValue) ||
-      !Number.isFinite(totalValue) ||
-      !Number.isFinite(thresholdValue) ||
-      remainingValue < 0 ||
-      totalValue < 0 ||
-      thresholdValue < 0
-    ) {
-      setError('Stock numbers must be zero or greater.')
+    if (stockProblem) {
+      setError(stockProblem)
       return
     }
+    const remainingValue = stockErrors.remainingValue ?? 0
+    const totalValue = stockErrors.totalValue ?? 0
+    const thresholdValue = stockErrors.thresholdValue ?? 0
 
     const payload = {
       name: name.trim(),
       dosage: dosage.trim(),
       form,
       times: times.length > 0 ? times : [],
-      remainingTablets: Math.round(remainingValue),
-      totalTablets: Math.round(Math.max(totalValue, remainingValue)),
-      refillThreshold: Math.round(thresholdValue),
+      remainingTablets: remainingValue,
+      totalTablets: totalValue,
+      refillThreshold: thresholdValue,
       expiryDate: expiry ? Timestamp.fromDate(fromDateInputValue(expiry) as Date) : null,
       notes: notes.trim(),
       active,
@@ -562,31 +608,45 @@ function MedicineForm({
           </Field>
         </div>
 
-        <Field label="Tablets remaining" htmlFor="med-remaining">
+        <Field label="Tablets remaining" htmlFor="med-remaining" error={stockErrors.issues.remaining}>
           <Input
             id="med-remaining"
             type="number"
+            inputMode="numeric"
             min={0}
+            max={999999}
+            step={1}
             value={remaining}
             onChange={(event) => setRemaining(event.target.value)}
           />
         </Field>
 
-        <Field label="Total in pack" htmlFor="med-total">
+        <Field label="Total in pack" htmlFor="med-total" error={stockErrors.issues.total}>
           <Input
             id="med-total"
             type="number"
+            inputMode="numeric"
             min={0}
+            max={999999}
+            step={1}
             value={total}
             onChange={(event) => setTotal(event.target.value)}
           />
         </Field>
 
-        <Field label="Refill threshold" htmlFor="med-threshold" hint="Alert when stock drops to this.">
+        <Field
+          label="Refill threshold"
+          htmlFor="med-threshold"
+          hint="Alert when stock drops to this."
+          error={stockErrors.issues.threshold}
+        >
           <Input
             id="med-threshold"
             type="number"
+            inputMode="numeric"
             min={0}
+            max={999999}
+            step={1}
             value={threshold}
             onChange={(event) => setThreshold(event.target.value)}
           />

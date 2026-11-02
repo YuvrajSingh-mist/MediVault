@@ -21,6 +21,32 @@ export function alertPermission(): AlertPermission {
   return Notification.permission as AlertPermission
 }
 
+/*
+ * A browser cannot revoke its own notification permission, so "off" is a local
+ * preference: the pop-up is suppressed and the app stops asking, while the
+ * in-app toast keeps working. Turning it back on is instant when the browser
+ * still grants permission.
+ */
+const ENABLED_KEY = 'medivault:alerts:enabled'
+
+export function alertEnabled(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return window.localStorage.getItem(ENABLED_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
+
+export function setAlertEnabled(enabled: boolean): boolean {
+  try {
+    window.localStorage.setItem(ENABLED_KEY, enabled ? 'on' : 'off')
+  } catch {
+    // Private modes can refuse writes; the session still honours the choice.
+  }
+  return enabled
+}
+
 /** Asks the browser for permission to show desktop notifications. */
 export async function requestAlertPermission(): Promise<{
   permission: AlertPermission
@@ -50,6 +76,7 @@ export async function requestAlertPermission(): Promise<{
 export async function armAlertPermission(): Promise<AlertPermission> {
   const current = alertPermission()
   if (current !== 'default') return current
+  if (!alertEnabled()) return current
 
   try {
     const permission = await Notification.requestPermission()
@@ -78,6 +105,7 @@ export function showBrowserAlert(
   options: { tag?: string; onClick?: () => void } = {},
 ): boolean {
   if (alertPermission() !== 'granted') return false
+  if (!alertEnabled()) return false
   try {
     const notification = new Notification(title, {
       body,

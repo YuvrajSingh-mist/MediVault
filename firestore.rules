@@ -77,7 +77,17 @@ service cloud.firestore {
         && request.resource.data.name.size() > 0
         && request.resource.data.times is list
         && request.resource.data.remainingTablets is int
-        && request.resource.data.remainingTablets >= 0;
+        && request.resource.data.remainingTablets >= 0
+        && request.resource.data.totalTablets is int
+        && request.resource.data.totalTablets >= 0
+        && request.resource.data.refillThreshold is int
+        && request.resource.data.refillThreshold >= 0
+        && (
+          request.resource.data.totalTablets == 0
+            ? request.resource.data.remainingTablets == 0
+            : request.resource.data.remainingTablets <= request.resource.data.totalTablets
+              && request.resource.data.refillThreshold <= request.resource.data.totalTablets
+        );
 
       allow update: if isSelf(resource.data.userId) && protectedFieldsUntouched();
       allow delete: if isSelf(resource.data.userId);

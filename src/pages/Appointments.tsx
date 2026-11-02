@@ -303,14 +303,26 @@ function AppointmentForm({
       setError('Who is the appointment with?')
       return
     }
+    if (doctorName.trim().length > 80) {
+      setError('Doctor name is too long. Keep it under 80 characters.')
+      return
+    }
+    if (notes.trim().length > 600) {
+      setError('Notes are too long. Keep them under 600 characters.')
+      return
+    }
     const base = fromDateInputValue(date)
     if (!base) {
       setError('Choose a valid date.')
       return
     }
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+      setError('Choose a valid time.')
+      return
+    }
     const [hours, minutes] = time.split(':').map(Number)
     const when = new Date(base)
-    when.setHours(Number.isFinite(hours) ? hours : 10, Number.isFinite(minutes) ? minutes : 0, 0, 0)
+    when.setHours(hours, minutes, 0, 0)
 
     setSaving(true)
     setError(null)

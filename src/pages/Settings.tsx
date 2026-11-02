@@ -6,8 +6,10 @@ import { useToast } from '../context/ToastProvider'
 import { api, errorMessage } from '../lib/api'
 import { enableWebPush } from '../lib/notifications'
 import {
+  alertEnabled,
   alertPermission,
   requestAlertPermission,
+  setAlertEnabled,
   showBrowserAlert,
   type AlertPermission,
 } from '../lib/alerts'
@@ -92,6 +94,7 @@ export function SettingsPage() {
   const [pushBusy, setPushBusy] = useState(false)
   const [pushMessage, setPushMessage] = useState<string | null>(null)
   const [alertState, setAlertState] = useState<AlertPermission>(() => alertPermission())
+  const [alertsEnabled, setAlertsEnabled] = useState(() => alertEnabled())
   const [alertBusy, setAlertBusy] = useState(false)
   const [emailBusy, setEmailBusy] = useState(false)
 
@@ -112,11 +115,21 @@ export function SettingsPage() {
 
   async function saveProfile() {
     if (!profile) return
+    const trimmedName = displayName.trim()
+    const trimmedPhone = phone.trim()
+    if (trimmedName.length > 60) {
+      toast('Name is too long. Keep it under 60 characters.', 'error')
+      return
+    }
+    if (trimmedPhone && !/^\+?[\d\s-]{6,20}$/.test(trimmedPhone)) {
+      toast('Phone can only contain digits, spaces, + and -.', 'error')
+      return
+    }
     setSaving(true)
     try {
       await updateDoc(doc(db, 'users', profile.uid), {
-        displayName: displayName.trim() || profile.displayName,
-        phone: phone.trim(),
+        displayName: trimmedName || profile.displayName,
+        phone: trimmedPhone,
       })
       toast('Profile updated.', 'success')
     } catch (err) {
@@ -148,12 +161,24 @@ export function SettingsPage() {
   async function enableWebsiteAlerts() {
     setAlertBusy(true)
     try {
+      const current = alertPermission()
+      if (current === 'granted') {
+        setAlertsEnabled(setAlertEnabled(true))
+        toast('Website alerts back on for this device.', 'success')
+        return
+      }
       const result = await requestAlertPermission()
       setAlertState(result.permission)
+      if (result.permission === 'granted') setAlertsEnabled(setAlertEnabled(true))
       toast(result.message, result.permission === 'granted' ? 'success' : 'error')
     } finally {
       setAlertBusy(false)
     }
+  }
+
+  function disableWebsiteAlerts() {
+    setAlertsEnabled(setAlertEnabled(false))
+    toast('Website alerts off. In-app alerts still appear on the Alerts page.', 'default')
   }
 
   async function sendTestAlert() {
@@ -161,7 +186,8 @@ export function SettingsPage() {
       tag: 'medivault-test',
     })
     if (shown) toast('Sent. Check your desktop notifications.', 'success')
-    else toast('Enable website alerts first.', 'error')
+    else if (!alertsEnabled) toast('Website alerts are turned off.', 'error')
+    else toast('Allow notifications in your browser first.', 'error')
   }
 
   async function enablePush() {
@@ -310,31 +336,54 @@ export function SettingsPage() {
             />
             <div className="card-pad">
               <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 12 }}>
-                Allow notifications and a new alert pops up even when the tab is in the background.
+                A new alert pops up on this device even when the tab is in the background. Turn it off
+                and alerts stay in the list below without interrupting you.
               </p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {alertState === 'granted' && alertsEnabled ? (
+                  <Button variant="soft" icon="bell" onClick={disableWebsiteAlerts}>
+                    Turn off website alerts
+                  </Button>
+                ) : (
+                  <Button
+                    variant="soft"
+                    icon="bell"
+                    onClick={enableWebsiteAlerts}
+                    loading={alertBusy}
+                    disabled={alertState === 'unsupported'}
+                  >
+                    {alertState === 'denied' ? 'Retry permission' : 'Turn on website alerts'}
+                  </Button>
+                )}
                 <Button
-                  variant="soft"
-                  icon="bell"
-                  onClick={enableWebsiteAlerts}
-                  loading={alertBusy}
-                  disabled={alertState === 'granted' || alertState === 'unsupported'}
+                  variant="ghost"
+                  icon="mail"
+                  onClick={sendTestAlert}
+                  disabled={alertState !== 'granted' || !alertsEnabled}
                 >
-                  {alertState === 'granted' ? 'Enabled on this browser' : 'Enable website alerts'}
-                </Button>
-                <Button variant="ghost" icon="mail" onClick={sendTestAlert} disabled={alertState !== 'granted'}>
                   Send a test alert
                 </Button>
               </div>
               <div style={{ marginTop: 10 }}>
-                <Badge tone={alertState === 'granted' ? 'brand' : alertState === 'denied' ? 'amber' : 'default'} dot>
-                  {alertState === 'granted'
-                    ? 'Desktop notifications allowed'
+                <Badge
+                  tone={
+                    alertState === 'granted' && alertsEnabled
+                      ? 'brand'
+                      : alertState === 'denied'
+                        ? 'amber'
+                        : 'default'
+                  }
+                  dot
+                >
+                  {alertState === 'unsupported'
+                    ? 'Not supported by this browser'
                     : alertState === 'denied'
                       ? 'Blocked in browser settings'
-                      : alertState === 'unsupported'
-                        ? 'Not supported by this browser'
-                        : 'Permission not granted yet'}
+                      : !alertsEnabled
+                        ? 'Turned off on this device'
+                        : alertState === 'granted'
+                          ? 'On for this device'
+                          : 'Permission not granted yet'}
                 </Badge>
               </div>
               {alertState === 'denied' ? (

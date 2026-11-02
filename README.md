@@ -165,7 +165,10 @@ npm run build
 firebase deploy --only hosting,functions,firestore:rules,firestore:indexes,storage
 ```
 
-Or in pieces: `npm run deploy:hosting`, `npm run deploy:functions`, `npm run deploy:rules`.
+Or in pieces: `npm run deploy:hosting`, `npm run deploy:functions`, `npm run deploy:rules`. If the
+Firebase CLI is not signed in but `gcloud` is, `python3 scripts/deploy-hosting.py` and
+`python3 scripts/deploy-rules.py` release the same Hosting bundle and Firestore rules through the REST
+APIs with the Cloud SDK token.
 
 **Two steps cannot be scripted.** After the first deploy, open the console once and
 

@@ -104,6 +104,14 @@ npm run build                 # tsc --noEmit + vite build (uses .env.production)
 firebase deploy --project medivault-gcp-23875
 ```
 
+Without an interactive Firebase login, the two REST helpers below do the same Hosting and rules
+releases with the Cloud SDK token:
+
+```bash
+python3 scripts/deploy-hosting.py
+python3 scripts/deploy-rules.py
+```
+
 What gets deployed:
 
 | Target | Content |

@@ -270,14 +270,16 @@ exports.logDose = onCall({ cors: true }, async (request) => {
 
     const stock = Number(medicine.remainingTablets) || 0
     const total = Number(medicine.totalTablets) || stock
+    // Undo never pushes the count past what the pack holds.
+    const refillOne = total > 0 ? Math.min(stock + 1, total) : stock + 1
     let remaining = stock
 
     if (action === 'undo') {
-      if (previousStatus === 'taken') remaining = Math.min(stock + 1, Math.max(total, stock + 1))
+      if (previousStatus === 'taken') remaining = refillOne
       tx.delete(logRef)
     } else {
       if (action === 'take' && previousStatus !== 'taken') remaining = Math.max(0, stock - 1)
-      if (action === 'skip' && previousStatus === 'taken') remaining = Math.min(stock + 1, Math.max(total, stock + 1))
+      if (action === 'skip' && previousStatus === 'taken') remaining = refillOne
 
       tx.set(
         logRef,

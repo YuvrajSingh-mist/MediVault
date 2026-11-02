@@ -620,7 +620,10 @@ that already exist at the first snapshot, and announces only documents created a
 step is what stops a page load from replaying yesterday's alerts. A per-user ledger in
 \texttt{localStorage} survives reloads, and the desktop notification is suppressed while the tab is
 visible, so the user is never told the same thing twice on two surfaces. Settings exposes the permission
-request and a test button, because a permission prompt during a demonstration is a wasted minute.
+request, a local on/off switch and a test button, because a permission prompt during a demonstration is a
+wasted minute. Browsers do not let a page revoke its own notification permission, so turning alerts off
+stores a local preference that suppresses the pop-up and stops the app from asking again; the in-app list
+keeps every alert either way.
 
 \section{Deployment pipeline}
 
