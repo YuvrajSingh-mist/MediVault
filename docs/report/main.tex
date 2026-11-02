@@ -647,6 +647,13 @@ repeat visits.
 \chapter{Results and Evaluation}
 \label{chap:results}
 
+This chapter records what the deployed system did, in figures first. Sixteen Cloud Run functions run in
+\texttt{asia-south1}; a scheduled sweep completes in 299 ms on average and never exceeds 377 ms; the
+automated suite reports 30 assertions with 30 passing and none failing; the Firestore round trip from
+inside the region is 51 ms; and the recurring bill at demo scale is US\$0.00. Each number below comes from
+the project's own telemetry, a query against the live database, or the verification suite, and the text
+says which.
+
 \section{Deployment evidence}
 
 \begin{table}[h]
@@ -692,35 +699,47 @@ suite; a latency chart cannot supply it.
 
 The suite in \texttt{scripts/verify-backend.mjs} runs against the Firebase Emulator Suite and asserts
 real behaviour against real emulated services: real Auth sign-ups, real rules evaluation, real callable
-invocations, a real Storage upload and a real trigger. There are no mocks, and the negative cases are
-asserted as carefully as the positive ones, because a suite that only tests the happy path cannot tell a
-working rule from a missing one.
+invocations, a real Storage upload and a real trigger. It reports 30 assertions in eight groups, and a run
+finishes with 30 passed and 0 failed. There are no mocks, and the negative cases are asserted as carefully
+as the positive ones, because a suite that only tests the happy path cannot tell a working rule from a
+missing one.
+
+A count of green ticks says little, so the table reports what each check measured. Every value is read
+back from the emulator after the call: the status code the rules returned, the stock counter the
+transaction left behind, the document identifiers the engine wrote.
 
 \begin{table}[h]
 \centering
-\caption{Representative assertions from the 30-check suite.}
+\caption{Representative assertions from the 30-check suite, with the measured value rather than a
+verdict. All 30 pass.}
 \label{tab:assertions}
 \small
 \begin{tabularx}{\textwidth}{@{}l X l@{}}
 \toprule
-\textbf{Area} & \textbf{Assertion} & \textbf{Result} \\
+\textbf{Area} & \textbf{Assertion} & \textbf{Measured} \\
 \midrule
-Auth & Google/ID-token sign-up returns an ID token; profile provisioned by \texttt{ensureUserProfile} & PASS \\
-Rules & A stranger's query on another patient's medicines is rejected with \texttt{403} & PASS \\
-Rules & A \texttt{text/plain} upload is rejected by Storage rules & PASS \\
-Inventory & \texttt{logDose} decrements stock transactionally (42 $\rightarrow$ 41) & PASS \\
-Idempotency & A second tap on \emph{Take} does not double-deduct (still 41) & PASS \\
-Idempotency & A repeated sweep within the throttle window is a no-op & PASS \\
-Engine & A sweep fans out dose, low-stock, expiry and appointment alerts & PASS \\
-Storage & The finalize trigger indexes the object into Firestore & PASS \\
-Delegation & A linked caregiver can read the patient's medicine (API only) & PASS \\
+Auth & Sign-up returns an ID token for the patient and the caregiver & 2 of 2 tokens \\
+Auth & \texttt{ensureUserProfile} provisions the profile document & 1 \texttt{users/\{uid\}} written \\
+Rules & A stranger reads another patient's medicine & \texttt{HTTP 403} \\
+Rules & A stranger lists the \texttt{medicines} collection & \texttt{HTTP 403}, 0 documents \\
+Storage rules & A \texttt{text/plain} upload is rejected & \texttt{HTTP 403} \\
+Storage rules & A stranger writes into another patient's folder & \texttt{HTTP 403} \\
+Inventory & \texttt{logDose} decrements stock in a transaction & 42 $\rightarrow$ 41 \\
+Idempotency & Two \emph{Take} taps in the same window & 1 deduction, still 41 \\
+Idempotency & \texttt{logDose} with \texttt{undo} & back to 42 \\
+Engine & One sweep over 4 medicines and 2 appointments & 4 reminders: 1 dose, 2 refill, 1 appointment \\
+Idempotency & A manual sweep repeated inside 20 s & \texttt{HTTP 429}, 0 rows written \\
+Storage trigger & A PDF upload is indexed into Firestore & 1 document, polled every 0.4 s \\
+Delegation & A linked caregiver reads the patient's medicine & \texttt{HTTP 200} \\
+SMS & \texttt{sendTestSms} records a message & 1 \texttt{smsOutbox} row \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 The end-to-end path was also observed by hand. A seeded vault of four medicines and two appointments
-raised three alerts in one sweep, one appointment reminder and two refill notices, and an open dashboard
-rendered all three without a reload.
+produced four reminders in a single manual sweep: one dose, two refill notices and one appointment
+reminder. An open dashboard rendered all four without a reload. A second sweep 20 seconds later returned
+\texttt{HTTP 429} and wrote nothing, which is the throttle doing its job rather than a failure.
 
 \section{Alert channels}
 

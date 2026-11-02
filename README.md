@@ -148,6 +148,28 @@ TWILIO_AUTH_TOKEN=...
 TWILIO_FROM=+1...
 ```
 
+Those three lines are a template, not a secret the app ships with. To fill them:
+
+1. Twilio Console, home page, *Account Info* panel: `TWILIO_ACCOUNT_SID` (starts `AC`) and
+   `TWILIO_AUTH_TOKEN` (click *show* to copy it).
+2. Twilio Console, *Phone Numbers > Active numbers*: the number you own, written in E.164 form with
+   the country code, for example `+14155550123`. That is `TWILIO_FROM`.
+3. Paste all three into `functions/.env`, then ship only the backend, because the values live on the
+   functions and the browser bundle does not change:
+
+```bash
+npm run deploy:functions
+```
+
+A trial account can only text numbers you have verified in *Phone Numbers > Verified caller IDs*, and
+only in countries left open under *Messaging > Geo permissions*. A US long code sending to India is
+usually refused by the carrier; the error text lands on the `smsOutbox` row.
+
+To confirm delivery, sign in, open *Settings*, press *Send a test SMS*, and read the newest
+`smsOutbox` document: `status: "sent"` with `provider: "twilio"` means the carrier accepted it.
+`status: "failed"` carries Twilio's own message in `error`. With the variables absent the same
+button writes `status: "logged"` and no text is sent.
+
 ## Deploy to Google Cloud
 
 ```bash

@@ -134,6 +134,34 @@ Artifact Registry cleanup policy is set to keep 3 days of container images
 (`firebase functions:artifacts:setpolicy --location=asia-south1 --days=3`), which keeps the monthly
 bill at the free-tier end.
 
+### Turning on real SMS
+
+The project ships without Twilio credentials, so every composed message is written to `smsOutbox`
+with `status: "logged"`. To send for real:
+
+```bash
+# functions/.env  (git-ignored)
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_FROM=+14155550123
+```
+
+Then redeploy only the functions, since the values are read as Cloud Run environment variables:
+
+```bash
+npm run deploy:functions
+gcloud functions list --project=medivault-gcp-23875 --v2 \
+  --format="value(name)" | head
+```
+
+Verify from the app: *Settings > Send a test SMS*. The result is the newest document in `smsOutbox`;
+`provider: "twilio"` plus `status: "sent"` means Twilio accepted it, and `status: "failed"` stores the
+carrier's reason in `error`. Delete a value to fall back to the outbox without redeploying code.
+
+On a trial account, verify the destination number under *Phone Numbers > Verified caller IDs* and
+open the country under *Messaging > Geo permissions*, otherwise the API returns a 4xx that the
+function records as a failed delivery.
+
 ---
 
 ## 4. Verifying the live deployment
