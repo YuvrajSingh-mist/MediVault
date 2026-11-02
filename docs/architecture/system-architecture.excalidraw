@@ -35,7 +35,7 @@
       "strokeWidth": 2,
       "text": "MediVault: serverless architecture on Google Cloud Platform",
       "textAlign": "left",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 420483429,
       "verticalAlign": "top"
@@ -72,7 +72,7 @@
       "strokeWidth": 2,
       "text": "Every tier is a managed service. The only long-lived component is the browser.",
       "textAlign": "left",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1162747127,
       "verticalAlign": "top"
@@ -114,7 +114,7 @@
       "strokeColor": "#1971c2",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 231640774
     },
@@ -163,7 +163,7 @@
       "strokeColor": "#1971c2",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 194837861
     },
@@ -199,7 +199,7 @@
       "strokeWidth": 2,
       "text": "global CDN, HTTPS\nimmutable assets",
       "textAlign": "left",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 855376444,
       "verticalAlign": "top"
@@ -249,7 +249,7 @@
       "strokeColor": "#1971c2",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 82633011
     },
@@ -294,7 +294,7 @@
       "strokeColor": "#1971c2",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 201987289
     },
@@ -324,7 +324,7 @@
       "strokeColor": "#ced4da",
       "strokeStyle": "dashed",
       "strokeWidth": 1,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 186752408
     },
@@ -360,7 +360,7 @@
       "strokeWidth": 2,
       "text": "Compute tier",
       "textAlign": "left",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 2108020267,
       "verticalAlign": "top"
@@ -402,7 +402,7 @@
       "strokeColor": "#7048e8",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 209510370
     },
@@ -438,7 +438,7 @@
       "strokeWidth": 2,
       "text": "cron: every 5 minutes",
       "textAlign": "left",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 390683017,
       "verticalAlign": "top"
@@ -500,7 +500,7 @@
       "strokeColor": "#7048e8",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 634337428
     },
@@ -541,7 +541,7 @@
       "strokeColor": "#e8590c",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1529140780
     },
@@ -582,7 +582,7 @@
       "strokeColor": "#2f9e44",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 164956152
     },
@@ -623,7 +623,7 @@
       "strokeColor": "#e8590c",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1317977292
     },
@@ -664,7 +664,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1642425220
     },
@@ -716,7 +716,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "solid",
       "strokeWidth": 1.6,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1745002067
     },
@@ -768,7 +768,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "solid",
       "strokeWidth": 1.6,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 934735154
     },
@@ -820,7 +820,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "solid",
       "strokeWidth": 1.6,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 812498308
     },
@@ -879,7 +879,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "solid",
       "strokeWidth": 1.6,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1586388418
     },
@@ -938,7 +938,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "solid",
       "strokeWidth": 1.6,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1889944513
     },
@@ -997,7 +997,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "solid",
       "strokeWidth": 1.6,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1107753416
     },
@@ -1056,7 +1056,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "solid",
       "strokeWidth": 1.6,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1068200654
     },
@@ -1115,7 +1115,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "solid",
       "strokeWidth": 1.6,
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 787031264
     },
@@ -1174,7 +1174,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "dashed",
       "strokeWidth": 1.6,
-      "updated": 1793652857061,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 2116138654
     },
@@ -1233,7 +1233,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "solid",
       "strokeWidth": 1.6,
-      "updated": 1793652857061,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1164442650
     },
@@ -1289,7 +1289,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "dashed",
       "strokeWidth": 1.6,
-      "updated": 1793652857061,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1165898783
     },
@@ -1325,7 +1325,7 @@
       "strokeWidth": 2,
       "text": "live read",
       "textAlign": "left",
-      "updated": 1793652857061,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 833056381,
       "verticalAlign": "top"
@@ -1362,7 +1362,7 @@
       "strokeWidth": 2,
       "text": "Firestore and the functions run in asia-south1; the sweep runs every five minutes.",
       "textAlign": "left",
-      "updated": 1793652857061,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 680247450,
       "verticalAlign": "top"
@@ -1399,7 +1399,7 @@
       "strokeWidth": 1,
       "text": "Patient",
       "textAlign": "center",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1644084317,
       "verticalAlign": "middle"
@@ -1436,7 +1436,7 @@
       "strokeWidth": 1,
       "text": "Firebase Hosting",
       "textAlign": "center",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1035192290,
       "verticalAlign": "middle"
@@ -1473,7 +1473,7 @@
       "strokeWidth": 1,
       "text": "React 18 SPA",
       "textAlign": "center",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 2144690108,
       "verticalAlign": "middle"
@@ -1510,7 +1510,7 @@
       "strokeWidth": 1,
       "text": "Firebase Auth",
       "textAlign": "center",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1994502750,
       "verticalAlign": "middle"
@@ -1547,7 +1547,7 @@
       "strokeWidth": 1,
       "text": "Cloud Scheduler",
       "textAlign": "center",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 766472587,
       "verticalAlign": "middle"
@@ -1584,7 +1584,7 @@
       "strokeWidth": 1,
       "text": "Cloud Functions\n2nd gen, Cloud Run, Node.js 22",
       "textAlign": "center",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 958374191,
       "verticalAlign": "middle"
@@ -1621,7 +1621,7 @@
       "strokeWidth": 1,
       "text": "FCM + SendGrid\npush and email",
       "textAlign": "center",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1863976727,
       "verticalAlign": "middle"
@@ -1658,7 +1658,7 @@
       "strokeWidth": 1,
       "text": "Cloud Firestore\nusers, medicines, doses",
       "textAlign": "center",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 620969683,
       "verticalAlign": "middle"
@@ -1695,7 +1695,7 @@
       "strokeWidth": 1,
       "text": "Cloud Storage\nprivate bucket",
       "textAlign": "center",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1779013557,
       "verticalAlign": "middle"
@@ -1732,7 +1732,7 @@
       "strokeWidth": 1,
       "text": "Cloud Logging\nstructured JSON",
       "textAlign": "center",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 40464543,
       "verticalAlign": "middle"
@@ -1769,7 +1769,7 @@
       "strokeWidth": 1,
       "text": "ID token",
       "textAlign": "center",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1442414873,
       "verticalAlign": "middle"
@@ -1806,7 +1806,7 @@
       "strokeWidth": 1,
       "text": "callables",
       "textAlign": "center",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 426261272,
       "verticalAlign": "middle"
@@ -1843,7 +1843,7 @@
       "strokeWidth": 1,
       "text": "invokes",
       "textAlign": "center",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 211415133,
       "verticalAlign": "middle"
@@ -1880,7 +1880,7 @@
       "strokeWidth": 1,
       "text": "fan-out",
       "textAlign": "center",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 990332275,
       "verticalAlign": "middle"
@@ -1917,7 +1917,7 @@
       "strokeWidth": 1,
       "text": "read + write",
       "textAlign": "center",
-      "updated": 1793652857060,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 863730179,
       "verticalAlign": "middle"
@@ -1954,7 +1954,7 @@
       "strokeWidth": 1,
       "text": "upload trigger",
       "textAlign": "center",
-      "updated": 1793652857061,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 203892293,
       "verticalAlign": "middle"
@@ -1991,7 +1991,7 @@
       "strokeWidth": 1,
       "text": "structured logs",
       "textAlign": "center",
-      "updated": 1793652857061,
+      "updated": 1793660366617,
       "version": 1,
       "versionNonce": 1873295199,
       "verticalAlign": "middle"

@@ -665,11 +665,11 @@ says which.
 \midrule
 Hosting URL & \appurl\ (HTTPS, HTTP/2) \\
 Functions & 16 functions, all \texttt{ACTIVE}, generation \texttt{GEN\_2}, region \texttt{asia-south1} \\
-Scheduler jobs & \texttt{firebase-schedule-sweepReminders-asia-south1} (every 5 minutes, \texttt{ENABLED}, last attempt 2026-11-02T19:38Z); \texttt{firebase-schedule-dailyDigest-asia-south1} (\texttt{0 8 * * *}, last attempt 2026-11-02T08:00Z) \\
+Scheduler jobs & \texttt{firebase-schedule-sweepReminders-asia-south1} (every 5 minutes, \texttt{ENABLED}, last attempt 2026-11-02T22:54Z); \texttt{firebase-schedule-dailyDigest-asia-south1} (\texttt{0 8 * * *}, last attempt 2026-11-02T08:00Z) \\
 Firestore round-trip & 51 ms, measured by \texttt{cloudHealth} from inside the deployed region \\
 Sweep telemetry & 12 runs recorded in \texttt{system/status} \\
-Client bundle & 637 kB minified, 199 kB gzip, 26 kB CSS \\
-Source size & 5{,}208 lines of TypeScript/TSX (22 files), 1{,}634 lines of backend JavaScript \\
+Client bundle & 631 kB minified, 198 kB gzip, 29 kB CSS \\
+Source size & 5{,}022 lines of TypeScript/TSX (22 files), 1{,}634 lines of backend JavaScript \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -677,9 +677,10 @@ Source size & 5{,}208 lines of TypeScript/TSX (22 files), 1{,}634 lines of backe
 \section{Scheduler performance}
 
 Figure~\ref{fig:latency} plots the twelve most recent scheduled runs, read back from the telemetry the
-engine itself wrote. The mean is 299 ms with a spread of 229 to 377 ms; the largest observed value is still
-three orders of magnitude below the 300-second function timeout, which means a slow run has ample headroom
-before it would be truncated.
+engine itself wrote. The median is 312 ms and ten of the twelve sit between 232 and 396 ms. Two runs take
+about 1.3 s, which is the cost of a fresh function instance: their containers had been recycled, so the
+first request after a quiet period pays for startup. Even that worst case is two orders of magnitude below
+the 300-second function timeout, so a slow run has ample headroom before it would be truncated.
 
 \begin{figure}[h]
 \centering
@@ -689,9 +690,10 @@ read from \texttt{system/status} in the live project, not simulated.}
 \label{fig:latency}
 \end{figure}
 
-In the sampled window no dose was due, so all twelve runs created zero alerts. That is correct behaviour
-for a five-minute window, but it means the evidence for correctness has to come from the functional
-suite; a latency chart cannot supply it.
+Only one of the twelve runs raised an alert; the rest found nothing due, which is correct for a five-minute
+window in a quiet account. That is also why the evidence for correctness has to come from the functional
+suite: a latency chart shows the engine kept running, not that it would have been right if a dose had
+fallen due.
 
 \section{Functional verification}
 
@@ -744,8 +746,11 @@ reminder. An open dashboard rendered all four without a reload. A second sweep 2
 All four channels read the same Firestore document, which is what keeps them consistent, and each records
 its outcome on that document. The channel that is easiest to get wrong is the desktop notification,
 because browsers require a gesture before granting permission and a visible tab should not also raise an
-operating-system popup. Settings therefore exposes an explicit consent control and a test button, and the
-client raises the notification only while \texttt{document.hidden} is true.
+operating-system popup. Permission is requested automatically on the first visit after sign-in, with a
+retry on the first click if the browser refuses without one, so a patient does not have to find a switch;
+Settings keeps an explicit control and a test button for the case where permission was dismissed. The
+client raises the notification only while \texttt{document.hidden} is true, and the in-app toast covers the
+rest.
 
 \section{Interface}
 

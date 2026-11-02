@@ -35,7 +35,7 @@
       "strokeWidth": 2,
       "text": "Firestore collections and who may write them",
       "textAlign": "left",
-      "updated": 1793652860754,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 420483429,
       "verticalAlign": "top"
@@ -72,7 +72,7 @@
       "strokeWidth": 2,
       "text": "Every document carries an owning userId, which turns each security rule into one equality check.",
       "textAlign": "left",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 1162747127,
       "verticalAlign": "top"
@@ -122,7 +122,7 @@
       "strokeColor": "#2f9e44",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 2035736093
     },
@@ -167,7 +167,7 @@
       "strokeColor": "#2f9e44",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 333590160
     },
@@ -208,7 +208,7 @@
       "strokeColor": "#2f9e44",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 1436638549
     },
@@ -253,7 +253,7 @@
       "strokeColor": "#e8590c",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 388560840
     },
@@ -294,7 +294,7 @@
       "strokeColor": "#2f9e44",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 2032748973
     },
@@ -335,7 +335,7 @@
       "strokeColor": "#e8590c",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 726680482
     },
@@ -372,7 +372,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 243149175
     },
@@ -431,7 +431,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "solid",
       "strokeWidth": 1.6,
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 1504634592
     },
@@ -490,7 +490,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "solid",
       "strokeWidth": 1.6,
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 1682107667
     },
@@ -549,7 +549,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "solid",
       "strokeWidth": 1.6,
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 281841800
     },
@@ -608,7 +608,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "solid",
       "strokeWidth": 1.6,
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 301129041
     },
@@ -667,7 +667,7 @@
       "strokeColor": "#495057",
       "strokeStyle": "dashed",
       "strokeWidth": 1.6,
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 1995082738
     },
@@ -703,7 +703,7 @@
       "strokeWidth": 2,
       "text": "Written by",
       "textAlign": "left",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 191287315,
       "verticalAlign": "top"
@@ -736,7 +736,7 @@
       "strokeColor": "#2f9e44",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 707067700
     },
@@ -772,7 +772,7 @@
       "strokeWidth": 2,
       "text": "the signed-in owner",
       "textAlign": "left",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 663703501,
       "verticalAlign": "top"
@@ -805,7 +805,7 @@
       "strokeColor": "#e8590c",
       "strokeStyle": "solid",
       "strokeWidth": 1.5,
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 1689655665
     },
@@ -841,7 +841,7 @@
       "strokeWidth": 2,
       "text": "Cloud Functions through the Admin SDK",
       "textAlign": "left",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 1897525628,
       "verticalAlign": "top"
@@ -878,7 +878,7 @@
       "strokeWidth": 2,
       "text": "system/status is a single document, written only by the sweep.",
       "textAlign": "left",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 816389546,
       "verticalAlign": "top"
@@ -915,7 +915,7 @@
       "strokeWidth": 1,
       "text": "users/{uid}\n\ndisplayName, email\ntimezone, prefs\nfcmTokens[]",
       "textAlign": "center",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 1775718276,
       "verticalAlign": "middle"
@@ -952,7 +952,7 @@
       "strokeWidth": 1,
       "text": "medicines/{id}\n\nname, dosage, form\ntimes[], remainingTablets\nrefillThreshold, expiryDate",
       "textAlign": "center",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 630034747,
       "verticalAlign": "middle"
@@ -989,7 +989,7 @@
       "strokeWidth": 1,
       "text": "appointments/{id}\n\ndoctorName, speciality\ndate, location, status",
       "textAlign": "center",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 1084704300,
       "verticalAlign": "middle"
@@ -1026,7 +1026,7 @@
       "strokeWidth": 1,
       "text": "reminders/{id}\n\ntype, title, body\ndedupeKey, channels[]\nread, readAt",
       "textAlign": "center",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 2092695133,
       "verticalAlign": "middle"
@@ -1063,7 +1063,7 @@
       "strokeWidth": 1,
       "text": "doseLogs/{medId_date_hhmm}\n\nstatus: taken | skipped\nloggedBy, loggedAt",
       "textAlign": "center",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 561955604,
       "verticalAlign": "middle"
@@ -1100,7 +1100,7 @@
       "strokeWidth": 1,
       "text": "mailOutbox/{id}\n\ncomposed message\nstatus, providerError",
       "textAlign": "center",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 1412280185,
       "verticalAlign": "middle"
@@ -1137,7 +1137,7 @@
       "strokeWidth": 1,
       "text": "system/status\n\nlastRun, recentRuns\nschedule strings",
       "textAlign": "center",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 214268926,
       "verticalAlign": "middle"
@@ -1174,7 +1174,7 @@
       "strokeWidth": 1,
       "text": "1 : N",
       "textAlign": "center",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 100871171,
       "verticalAlign": "middle"
@@ -1211,7 +1211,7 @@
       "strokeWidth": 1,
       "text": "1 : N",
       "textAlign": "center",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 898984044,
       "verticalAlign": "middle"
@@ -1248,7 +1248,7 @@
       "strokeWidth": 1,
       "text": "1 : N",
       "textAlign": "center",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 1820827683,
       "verticalAlign": "middle"
@@ -1285,7 +1285,7 @@
       "strokeWidth": 1,
       "text": "1 : N",
       "textAlign": "center",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 1690110044,
       "verticalAlign": "middle"
@@ -1322,7 +1322,7 @@
       "strokeWidth": 1,
       "text": "composed from",
       "textAlign": "center",
-      "updated": 1793652860755,
+      "updated": 1793660373620,
       "version": 1,
       "versionNonce": 582716571,
       "verticalAlign": "middle"

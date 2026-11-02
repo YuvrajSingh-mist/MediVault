@@ -376,8 +376,12 @@ def reminder_sweep() -> Diagram:
     d.arrow("a-loads-eval2", "load-appts", "evaluate")
     d.arrow("a-loads-eval3", "load-profiles", "evaluate")
     d.arrow("a-eval-exists", "evaluate", "exists")
-    d.arrow("a-exists-noop", "exists", "noop", label="no")
-    d.arrow("a-exists-raise", "exists", "raise", label="yes")
+    # Vertical arrows get no bound label: Excalidraw centres a bound label on the
+    # line itself, which strikes through the word. These sit beside it instead.
+    d.arrow("a-exists-noop", "exists", "noop")
+    d.text("label-no", 762, 992, "no", size=14, color=MUTED)
+    d.arrow("a-exists-raise", "exists", "raise")
+    d.text("label-yes", spine + 16, 1122, "yes", size=14, color=MUTED)
     for channel in ("ch-inapp", "ch-desktop", "ch-push", "ch-mail"):
         d.arrow(f"a-raise-{channel}", "raise", channel)
     # The run summary is written even when nothing is fanned out, so this
