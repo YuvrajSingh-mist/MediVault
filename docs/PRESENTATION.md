@@ -1,329 +1,313 @@
-# MediVault — 10-Minute Presentation Script & Slide Outline
+# MediVault: 10-Minute Recording Script
 
-**Deliverable:** recorded video demonstrating architecture, implementation and functionality.
-**Length:** 10:00 hard cap. **Speakers:** three members. **Format:** slides + live screen capture.
+**Format:** slides + live screen capture of the deployed app. **Length:** 10:00 hard cap.
 
----
-
-## Before you record — 10-minute checklist
-
-**Terminals (start 5 minutes early, leave running)**
-
-```bash
-# terminal 1 — emulated cloud stack (Auth, Firestore, Storage, Functions, UI)
-npm run emulators
-
-# terminal 2 — web app
-npm run dev
-
-# terminal 3 — ready to run, but DO NOT execute yet
-npm run verify
-```
-
-* Browser window 1: `http://127.0.0.1:5173` (patient).
-* Browser window 2: `http://127.0.0.1:5173` in a second window, same account (used to prove
-  cross-window live updates and alerts).
-* Browser tab 3: `http://127.0.0.1:4000` (Emulator UI — Firestore, Storage, Auth tabs).
-* Browser tab 4: **GCP console** — Cloud Scheduler and Cloud Logging, already logged in.
-* Close notifications, set the display to 1080p, hide the macOS dock, enlarge the browser zoom to 110–125 %.
-* Allow notifications for `localhost` (or the deployed URL) in advance, so the desktop-alert
-  step does not stall on a browser permission prompt.
-
-**If you are demonstrating the deployed GCP project instead of local emulators**, replace the local
-URLs with `https://<project>.web.app`, and show *Firebase console → Firestore / Storage* and *Cloud
-console → Scheduler / Logging* for the cloud evidence. Keep the same timings.
-
-**Golden rule:** rehearse the click path twice. Every second lost to a wrong menu is a second of
-narration lost.
+**New split:** Member 1 opens, presents the architecture and workflow, then demos the site: **0:00–4:00**.
+Member 2 takes **4:00–7:00**. Member 3 takes **7:00–10:00**. Member 1 is scripted word for word below;
+the other two have their decided slot, slide and click path, to be scripted next.
 
 ---
 
-## Slide outline (12 slides)
+## The plan at a glance
 
-| # | Slide | Owner | Time |
-|---|-------|-------|------|
-| 1 | Title — MediVault, team names, course | M1 | 0:00–0:30 |
-| 2 | Problem: missed doses, stock-outs unnoticed, expiry dates, forgotten appointments | M1 | 0:30–1:20 |
-| 3 | Objectives and the feature set | M1 | 1:20–2:00 |
-| 4 | Architecture diagram (the one from the README) | M3 | 2:00–3:00 |
-| 5 | GCP services table + why serverless | M3 | 3:00–3:45 |
-| 6 | Data model + security rules (per-user isolation) | M2 | 3:45–4:45 |
-| 7 | **Demo 1** — sign-in, dashboard, today's doses | M1 | 4:45–6:00 |
-| 8 | **Demo 2** — medicines, dose logging, website alerts | M2 | 6:00–7:15 |
-| 9 | **Demo 3** — sweep, alerts, Scheduler run, Cloud Logging | M3 | 7:15–8:30 |
-| 10 | Verification results + bundle metrics | M3 | 8:30–9:10 |
-| 11 | Conclusion, team split, thank you | All | 9:10–10:00 |
+| Slide | Content | Owner | Time |
+|---|---|---|---|
+| 1 | Title, group, team names | M1 | 0:00–0:20 |
+| 2 | The problem | M1 | 0:20–0:55 |
+| 3 | What MediVault does | M1 | 0:55–1:20 |
+| 4 | Architecture and workflow | M1 | 1:20–2:20 |
+| 5 | **Demo 1** live site: sign-in, dashboard, dose, stock guard, alerts | M1 | 2:20–4:00 |
+| 6 | Data model and security rules | M2 | 4:00–4:40 |
+| 7 | **Demo 2**: rules in the console, alert fan-out, mail outbox | M2 | 4:40–7:00 |
+| 8 | Scheduled path and observability | M3 | 7:00–7:30 |
+| 9 | **Demo 3**: Cloud status, sweep, Scheduler, Logging | M3 | 7:30–9:10 |
+| 10 | Verification results and close | M3 | 9:10–10:00 |
 
----
-
-## Full script
-
-> Narration is written to be spoken at ~150 words per minute. Square brackets are *actions on screen*,
-> not spoken. Trim the bracketed asides first if you run long.
+Seven slides and three demo segments. Record each member's block separately and join them; each block
+starts on its own slide, so a cut never lands mid-sentence.
 
 ---
 
-### 0:00 – 0:30 · Slide 1 · Member 1
+## Before you record
 
-> "Good morning. We are Group __, and this is **MediVault** — a cloud-based personal medication,
-> prescription and health reminder system built entirely on Google Cloud Platform. Everything you are
-> about to see runs on managed Google Cloud services: Firebase Hosting, Authentication, Cloud
-> Firestore, Cloud Storage, Cloud Functions on Cloud Run, and Cloud Scheduler. No virtual machines, no
-> database server, no cron daemon of our own."
+### Prepare the account (do this once, the day before)
+
+1. Use a **dedicated demo Google account**, not your personal one. The sign-in pop-up shows the email
+   address, and you do not want that in a submitted video.
+2. Sign in at <https://medivault-gcp-23875.web.app>.
+3. If the vault is empty, click **Load sample data** on the dashboard. It writes four medicines and two
+   appointments, and runs one sweep so alerts exist. It only works while the account has no medicines.
+4. Open **Settings → Website alerts → Send a test alert** and allow notifications in the browser. On
+   macOS, also check that Focus / Do Not Disturb is off, or the banner never appears on camera.
+5. Leave **one dose untaken** for the demo, and leave a few alerts **unread** so the badge is visible.
+
+### Windows and tabs, ready before you hit record
+
+| Tab | What to open |
+|---|---|
+| 1 | `https://medivault-gcp-23875.web.app`, signed in, on **Dashboard** |
+| 2 | Firebase console → Firestore → `medicines` collection (M2 uses it) |
+| 3 | Firebase console → Firestore → **Rules** tab (M2 uses it) |
+| 4 | Cloud console → Cloud Scheduler, and Cloud Logging (M3 uses them) |
+| 5 | Terminal in the repo, ready for `npm run verify:deployed` (M3 runs it) |
+
+Also:
+
+- Browser zoom 110–125 %. 1080p. Hidden dock and menu bar if your recorder allows it.
+- Close every personal tab, chat and notification.
+- Cursor highlight on, if you have one. Move the pointer, pause on the element, then click.
+- Do a silent rehearsal of the clicks once. The clicks are the part that overruns.
+
+**Fallback:** if the deployed site misbehaves on the day, use the emulators (`npm run emulators` and
+`npm run dev` at `http://127.0.0.1:5173`) and the same click path, then say "local emulator suite" once.
+Everything below still works; only the URL changes.
 
 ---
 
-### 0:30 – 1:20 · Slide 2 · Member 1
+# Member 1: 0:00 to 4:00
 
-> "Here is the problem we set out to solve. Medication only works when it is taken consistently, but
-> adherence fails for ordinary reasons. The schedule lives in someone's memory. A strip runs out and
-> nobody notices until the pharmacy is closed. An expiry date passes silently. A follow-up appointment
-> is forgotten. And when a family member helps, the handover is a phone call — *did you already take
-> it?* — with no shared record.
+Target: about 560 spoken words, which is 3:45 of talking, leaving 15 seconds for clicks and breaths.
+Read it twice out loud with a timer before recording.
+
+## 0:00–0:20 · Slide 1 · Title
+
+*Slide: MediVault, group number, three names, course code. Keep it plain.*
+
+> "Good evening. We are Group __, and this is MediVault, a medication and appointment reminder system
+> that runs entirely on managed Google Cloud services. I am Member 1. I will cover the problem, the
+> architecture and the workflow, then show the running application."
+
+*Do not read the names off the slide. They are already there.*
+
+## 0:20–0:55 · Slide 2 · The problem
+
+*Slide: four short lines, one per failure: missed dose, quiet stock-out, silent expiry, forgotten
+visit. No stock photos.*
+
+> "Medication only works when it is taken on time, and adherence fails for ordinary reasons. The
+> schedule lives in someone's head. A strip runs out and nobody notices until the pharmacy is shut. An
+> expiry date passes quietly. A follow-up appointment is forgotten. And when a family member helps, the
+> handover is a phone call, with no shared record.
 >
-> The second half of the problem is technical. Health data is sensitive. A reminder app that filters
-> records in the browser, or that lets a client write whatever it wants into the database, is not
-> acceptable even if the interface looks convincing. So we wanted a design where the **data layer**
-> enforces who may read and write — not the interface."
+> The second problem is trust. Health data is sensitive, so the browser cannot be the thing that decides
+> who may read a record."
 
----
+## 0:55–1:20 · Slide 3 · What MediVault does
 
-### 1:20 – 2:00 · Slide 3 · Member 1
+*Slide: the six screens as small thumbnails, or one line per feature.*
 
-> "Our objectives map directly onto the required features. Users sign in with Google — one click, no
-> password for us to store. They add, edit and delete medicines with dosages, multiple daily times,
-> tablet counts and expiry dates. A dashboard shows today's plan and lets
-> them mark doses taken, skipped or undone. The system raises low-stock and expiry alerts, reminds them
-> of appointments twenty-four hours ahead. Alerts reach them four ways — a toast in the page, a
-> desktop notification, web push, and email — all driven by the same Firestore document. Finally, the
-> deployed app can prove its own cloud usage: logs, scheduler runs and live environment details are
-> visible from inside the product. We deliberately kept the interface to six screens rather than
-> adding features we could not demo end to end."
+> "MediVault answers both. Google sign-in, so we never see a password. A medicine cabinet that holds
+> dosage, daily times, tablet count, refill threshold and expiry. Today's plan, where a dose can be
+> taken, skipped or undone. Alerts for low stock, expiry and appointments, on the page, on the desktop
+> and by email. And a scheduler that runs the checks whether the app is open or not."
 
----
+## 1:20–2:20 · Slide 4 · Architecture and workflow
 
-### 2:00 – 3:00 · Slide 4 · Member 3
+*Slide: the system architecture diagram from `docs/architecture/`. Point at each layer as you name it. Do
+not read the diagram box by box.*
 
-> "This is the architecture. The React application is compiled to static files and served by **Firebase
-> Hosting** over Google's CDN. **Firebase Authentication** issues an ID token, and every Firestore
-> read, every Storage upload and every function call carries that token.
+> "There are four moving parts.
 >
-> **Cloud Functions** — second generation, which means they actually run as Cloud Run services — sit in
-> the middle and are triggered in three different ways. The browser calls them directly for dose
-> logging and profile provisioning. **Cloud Scheduler** invokes the reminder sweep
-> every five minutes and the daily digest at eight UTC. And **Cloud Storage** raises a finalize event
-> whenever a prescription lands in the private bucket, which triggers the indexing function.
+> The React app is compiled to static files and served by Firebase Hosting from Google's CDN. Firebase
+> Authentication issues an ID token, and every read, every upload and every function call carries it.
 >
-> Data lives in **Firestore**, with binary objects in a private Storage bucket that only a trusted trigger writes metadata for. Reminders fan out through **Firebase Cloud
-> Messaging** for browser push and **SendGrid** for email — and when SendGrid is not configured,
-> messages are still composed into a Firestore outbox so the pipeline stays auditable. Everything logs
-> to **Cloud Logging** and **Cloud Monitoring**, and the scheduler writes its run history back into
-> Firestore, which is what the in-app status page reads."
-
----
-
-### 3:00 – 3:45 · Slide 5 · Member 3
-
-> "Why serverless rather than a virtual machine? Our workload is bursty and event-shaped: a cron tick,
-> an upload, a user tap. Cloud Functions scale to zero, need no patching, and each trigger is a managed
-> event source — we never write polling or a job queue. Cloud Scheduler gives us managed cron with
-> at-least-once delivery. Firestore and Storage are fully managed and replicated. Authentication is a
-> managed identity provider. The whole project fits comfortably inside the free monthly allowances,
-> which also means it is cheap to run after submission.
+> The browser writes only what it owns. Every document carries a userId, and Firestore rules compare
+> that field with the token. So isolation lives in the data layer, not in the interface.
 >
-> The one trade-off we accepted: at-least-once delivery means the scheduler can fire twice, so our
-> reminder engine had to be idempotent by design. We will see that in a moment."
-
----
-
-### 3:45 – 4:45 · Slide 6 · Member 2
-
-> "This is the data model. Every document carries the `userId` that owns it — the profile, each
-> medicine, each appointment, each prescription, each reminder and each dose log. That single
-> denormalised field is what makes authorization a cheap equality check instead of a join.
+> Behind it, Cloud Functions, second generation, so they run as Cloud Run services in asia-south1, hold
+> the logic that has to be authoritative. Logging a dose is a Firestore transaction, so two taps or two
+> devices cannot decrement stock twice. Cloud Scheduler calls a sweep every five minutes. It checks due
+> doses, stock, expiry and appointments, writes one reminder document per event, and fans that document
+> out to four channels.
 >
-> On top of it we write **Firestore security rules**. A user can read and write only documents whose
-> `userId` equals their token's uid, and reminder acknowledgement is limited to the four fields that
-> represent state, so an alert can never be rewritten into a fake one. Two collections can never be
-> written by a browser at all: `prescriptions`, which is created by the Storage trigger, and
-> `mailOutbox`, which is created by the email function.
->
-> Security rules exist for Cloud Storage too: the path is `prescriptions/{userId}/file`, only that user
-> may upload, uploads are capped at ten megabytes, and only images or PDFs are accepted.
->
-> The same delegation model that lets a caregiver read a patient's records is still implemented in the
-> rules and in three callables, but we removed it from the interface — we would rather defend a small
-> surface completely than demo a large one shallowly."
+> That document is the workflow: one write to Firestore, and every open tab shows it through a live
+> listener."
+
+*Point at the arrow from Scheduler to Functions, then Functions to Firestore, then Firestore to the
+browser. Three gestures, not ten.*
+
+## 2:20–4:00 · Demo 1 · Live site
+
+Follow these beats in order. Narration is about 160 words, so there is room to breathe.
+
+**2:20 · Sign in**
+
+[Tab 1. If you are already signed in, skip to 2:35 and trim this in editing.]
+
+> "Let me show it running. This is the deployed build, talking to the real project, not a mock-up."
+
+[Click **Continue with Google**, pick the demo account, wait for the dashboard.]
+
+**2:35 · Dashboard**
+
+[Point at the date and timezone chip, then the refill and expiry cards, then the dose rows, then the
+appointment card at the bottom.]
+
+> "Today's plan is built from each medicine's times, in the profile's timezone. The cards above the list
+> are the warnings: how many medicines need a refill, and how many expire soon. Under the plan sits the
+> next appointment and how many days away it is."
+
+**2:55 · Take, then undo**
+
+[Click **Take** on the first dose. Point at the toast that reports the new tablet count, and at the
+**Only a few left** badge on a low-stock row. Click **Undo**.]
+
+> "Marking a dose taken is not a checkbox. It calls a Cloud Function, which runs a transaction: read the
+> medicine and the existing log, decrement the count exactly once, write the audit row. The toast reports
+> the new count. Undo reverses it, and it cannot push the count above the pack."
+
+**3:15 · Medicines and the stock guard**
+
+[Open **Medicines**. Click the **Low stock** filter. Open a low-stock medicine, Atorvastatin in this
+data.]
+
+> "Each medicine is an ordinary document: dosage, form, times, stock, refill threshold, expiry."
+
+[Set **Total in pack** to `20`, then type `23` in **Tablets remaining**. An error appears under the
+field. Point at it, then press Cancel.]
+
+> "Watch this. The pack holds twenty, so twenty-three left is impossible, and the form says so before
+> anything is saved. The same rule is in Firestore and in the function that decrements stock, so a
+> crafted request cannot get past it either."
+
+*Cancel, do not save. The demo data stays untouched.*
+
+**3:45 · Website alerts**
+
+[Open **Settings** → **Website alerts** → **Send a test alert**. The OS banner appears; leave it up for
+two seconds.]
+
+> "Same document, second channel. And because it is per device, it can be turned off here without
+> losing the alerts in the list."
+
+[Point at **Turn off website alerts**, do not click, or click and click back on.]
+
+**3:55 · Handoff**
+
+[Go back to **Dashboard**.]
+
+> "That is the patient surface. Member 2 will show how the data behind it is protected, and how one
+> alert becomes four channels."
+
+*Stop recording. Start Member 2's block on slide 6.*
 
 ---
 
-### 4:45 – 6:00 · Demo 1 · Member 1
+# Member 2: 4:00 to 7:00
 
-> [Browser 1, login page] "Let me show it running. This is the app against the local emulator suite of
-> Google Cloud services — same code, same rules, just a local project id."
+**Decided split:** 40 seconds on the data model and rules, then the console demo. The point of this block
+is *authority*: the interface is not what protects the data.
 
-[Click **Explore with demo data**]
+## 4:00–4:40 · Slide 6 · Data model and security
 
-> "That button signs in with a demo account and calls a Cloud Function called `seedDemoData`, which
-> writes four medicines and two appointments. This is the dashboard."
+Slide: one document shown as a field list (`userId`, `name`, `times`, `remainingTablets`,
+`totalTablets`, `refillThreshold`, `expiryDate`) next to the four lines of the create rule.
 
-[Scroll slowly through the dashboard]
+Talking points:
 
-> "Today's schedule is built from each medicine's times, converted into the profile's timezone — this
-> account is set to Asia/Kolkata. Each row is a dose with Take, Skip and Undo. The cards above count
-> medicines, tablets left and unread alerts. On the right, the next appointment — the cardiologist in
-> about twenty hours — and the latest alerts."
+- Every document carries the owning `userId`. That one denormalised field turns authorization into an
+  equality check instead of a join.
+- Rules compare `request.auth.uid` with that field for read, write and delete.
+- The create rule also type-checks: name is a non-empty string, times is a list, stock is a whole number,
+  and `remainingTablets` can never exceed `totalTablets`.
+- `prescriptions` and `mailOutbox` are written by functions only. A browser cannot write them at all.
+- Ownership and creation time are immutable on update.
 
-[Click **Take** on a dose]
+## 4:40–7:00 · Demo 2
 
-> "Marking a dose taken does not just change a checkbox. It calls the `logDose` Cloud Function, which
-> runs a Firestore transaction: it reads the medicine and the existing dose log, decrements the tablet
-> count exactly once, and writes the log with the caller's role. Watch the counter change."
+| Time | Screen | Action |
+|---|---|---|
+| 4:40 | Firebase console → Firestore → `medicines` | Open one document, point at `userId`, `times`, `remainingTablets`. |
+| 5:00 | Firebase console → Firestore → Rules | Scroll to the `medicines` block, point at the create rule and the `isSelf` check. |
+| 5:25 | App → **Medicines** | Show the **Low stock** filter, then the refill threshold field on a medicine. |
+| 5:50 | App → **Settings → Notifications** | Walk the six toggles: email, push, dose, low stock, expiry, appointments. |
+| 6:10 | App → **Alerts** | Show the type filters and one alert's channels line. |
+| 6:35 | Firebase console → Firestore → `mailOutbox` | Open the newest document: recipient, subject, status `logged`, and which channels fired. |
 
----
+Lines to hit, not to read:
 
-### 6:00 – 7:15 · Demo 2 · Member 2
+- "The rule is doing the work here, not a `where` clause in the client."
+- "Turning off a category here changes what the next sweep sends. It does not delete the alert."
+- "One alert document, four delivery channels, and the outbox proves what was composed."
 
-[Open **Medicines**]
-
-> "Medicines are ordinary Firestore documents, but the rules shape them: the name must be a non-empty
-> string, the times must be a list, the remaining count must be a non-negative integer, and `userId`
-> must equal the caller. The ownership field and the creation timestamp are immutable after creation —
-> an update that touches them is rejected."
-
-[Open a medicine, change stock, save; show the stock bar update]
-
-> "Editing propagates instantly because the page is a live Firestore query — an `onSnapshot`
-> subscription — not a fetch on page load."
-
-[Click **Load sample data** on an empty vault — the dashboard fills in without a reload]
-
-> "Watch what happens after this write: today's doses and the next appointment appear by themselves. The
-> mutations bump a version counter that every live query subscribes to, so we never ask the user to
-> refresh the page."
-
-[Open **/system** in the second window, leave the dashboard visible, then click **Run sweep now**]
-
-> "That second window is writing to Firestore as this one watches. A new reminder document just landed
-> and it popped up here as a toast, and the bell badge on the Alerts item went up on its own — no
-> polling, no refresh. Only alerts created after the page opened are announced, because the component
-> primes itself with the ids that already exist."
-
-[Minimise the window, trigger a sweep again from the other window, then restore]
-
-> "Same document, second channel: because the tab was hidden, the Web Notifications API also raised a
-> real desktop notification. And in Settings there is the permission request and a test button, so you
-> can show the OS pop-up on demand. That is the website-alert layer — it is what the user actually sees."
-
-[Settings → Website alerts → Send a test alert]
-
-> "Behind it sit the other two channels. FCM push reaches the device when the tab is closed, and email
-> goes through SendGrid — or into `mailOutbox` when no key is configured, which keeps delivery
-> auditable in the demo."
+End with: "Member 3 will show the scheduled side, and what the system reports about itself."
 
 ---
 
-### 7:15 – 8:30 · Demo 3 · Member 3
+# Member 3: 7:00 to 10:00
 
-[Open **Alerts**, then the **Cloud status** page]
+**Decided split:** the scheduled path, then the evidence, then the close. This is the block that proves
+the cloud is doing work, so every claim needs a visible number.
 
-> "Now the scheduled path. In production, Cloud Scheduler invokes `sweepReminders` every five minutes.
-> For the demo we call the same engine on demand, so we do not have to wait."
+## 7:00–7:30 · Slide 8 · Scheduled path and observability
 
-[Click **Run sweep now**]
+Talking points:
 
-> "The engine scans active medicines and appointments, loads each owner's profile once for timezone and
-> notification preferences, and then evaluates four things: is a dose due in the last five minutes, is
-> stock at or below the refill threshold, is the expiry within thirty, fourteen, seven, three, one or
-> zero days, and is an appointment within twenty-four hours. New alerts appear here — you can see a
-> dose alert, a low-stock alert for Atorvastatin, and an appointment reminder."
+- Cloud Scheduler invokes `sweepReminders` every 5 minutes and `dailyDigest` at 08:00 UTC.
+- At-least-once delivery means the scheduler can fire twice, so reminder ids are deterministic and
+  created only if absent. That is the idempotency answer before anyone asks.
+- Every run writes a summary back into Firestore, so the product can report on its own cloud usage
+  without opening the console.
 
-[Point at one alert: show channels]
+## 7:30–9:10 · Demo 3
 
-> "Each alert records which channels were used — email, push, or in-app only. Because SendGrid is not
-> configured locally, the email is composed and written to the `mailOutbox` collection, so you can still
-> audit it."
+| Time | Screen | Action |
+|---|---|---|
+| 7:30 | `https://medivault-gcp-23875.web.app/system` | Type the URL, it has no menu entry. Point at Functions region, Firestore round-trip, last run. |
+| 7:50 | Same page | Click **Run sweep now**. Read out medicines scanned, alerts created, duration. |
+| 8:15 | Same page, Scheduler telemetry | Show the eight-run history and the 5-minute schedule. |
+| 8:40 | Cloud console → Cloud Scheduler | Show the job, its frequency and next run time. **Force run**. |
+| 9:00 | Cloud Logging | Filter `sweep`, open one entry, point at `createdReminders` and `durationMs`. The manual button logs `manual_sweep.completed`, the scheduler logs `sweepReminders.completed`. |
 
-[Switch the other window to the Alerts page — it updated with no reload]
+Lines: "the same engine the scheduler calls", "the run history is a Firestore document, not a screenshot",
+"the log entry carries the counts the page just showed".
 
-> "The same run wrote its summary to `system/status`. The Cloud status page reads it: documents
-> scanned, alerts created, users notified, duration, and the last eight runs. This is the in-app mirror
-> of Cloud Logging."
+## 9:10–10:00 · Verification and close
 
-[Optional, if showing the deployed project: Cloud console → Cloud Scheduler → **Force run** → Logs]
+Run `npm run verify:deployed` in the terminal. Six checks run without a token and all six pass; the
+signed-in suite is listed as skipped. Read the four that matter: HTTPS and bundle, `/api` health,
+unauthenticated callable rejected, unauthenticated Firestore read rejected. Then one sentence on the
+emulator suite: thirty assertions, including a second Take not deducting a second tablet and a second
+sweep inside twenty seconds being throttled.
 
-> "In the deployed project, forcing the scheduler job produces the same result, and Cloud Logging shows
-> the structured entry — `reminder_sweep` with `createdReminders`, `durationMs` and `notifiedUsers`. A
-> dose log shows up as `dose.logged`, and a prescription upload as `storage.prescription_indexed`."
+Close:
 
----
-
-### 8:30 – 9:10 · Slide 10 · Member 3
-
-> "We did not just click around. We wrote an end-to-end verification suite that runs against the real
-> emulated services — real sign-ups, real rules, real callables, a real storage upload and trigger. It
-> has thirty assertions and all thirty pass."
-
-[Show terminal output or the slide listing the checks]
-
-> "It proves the negative cases too: a stranger reading another patient's medicine gets HTTP 403, a
-> text upload is rejected, a write into another user's folder is rejected, a second tap on Take does
-> not deduct a second tablet, and a second sweep within twenty seconds is throttled. The production
-> build is type-checked with zero errors and ships as about 211 kilobytes of gzipped JavaScript."
+> "MediVault is a small system, deliberately. Six screens, sixteen functions, one data layer that
+> decides who can read what, and a scheduler that does not care whether anyone is watching. Thank you.
+> We are happy to take questions."
 
 ---
 
-### 9:40 – 10:00 · Slide 12 · All three
+## Handoff cues
 
-> **Member 1:** "To summarise: MediVault turns a daily health routine into an event-driven cloud system."
-> **Member 2:** "Firestore and Storage hold the data, and security rules — not the interface — decide who
-> can touch it."
-> **Member 3:** "Cloud Functions, Cloud Scheduler and Cloud Storage triggers do the work, and Cloud
-> Logging and Monitoring make it observable." 
-> **Member 1 (closing):** "Thank you. We are happy to take questions."
+Keep these three sentences exact. They are the seams between the recorded blocks.
 
----
-
-## Backup plans
-
-| Problem during recording | Immediate fallback |
-|---------------------------|--------------------|
-| Emulators fail to start | Use the deployed `https://<project>.web.app` environment instead (same click path) |
-| Port already in use | `lsof -i :8080` → kill the stale emulator, restart `npm run emulators` |
-| Sweep shows no alerts | The seeded dose is due at the current minute; re-run the sweep after 60 s, or point at the low-stock and appointment alerts that are always present |
-| Emulator UI slow | Skip it; the Cloud status page shows the same run data from `system/status` |
-| Internet down | Everything you need is local except the GCP console screenshots — have those as static images on a slide |
-| Running over time | Drop the Cloud status walkthrough, then the live alert demo; never cut the problem statement or the architecture |
+| Cut | Last line |
+|---|---|
+| M1 → M2 | "Member 2 will show how the data behind it is protected, and how one alert becomes four channels." |
+| M2 → M3 | "Member 3 will show the scheduled side, and what the system reports about itself." |
+| M3 ends | "Thank you. We are happy to take questions." |
 
 ---
 
-## Viva preparation (likely questions)
+## If something goes wrong
 
-1. **Which services are GCP, and which are "Firebase"?** All of them are GCP; Firebase is the SDK and
-   console layer over Firestore, Cloud Storage, Cloud Run Functions, Scheduler and Logging.
-2. **What happens if the scheduler fires twice?** Nothing; reminder ids are deterministic and created
-   with create-if-absent semantics.
-3. **How is inventory protected?** A transaction over the medicine and dose-log documents, with
-   state-aware arithmetic.
-4. **Why did you remove features instead of adding more?** Because every additional surface needs its
-   own rules, tests and demo time; the six screens that remain are the ones we can prove end to end.
-   Prescription uploads and caregiver sharing survive as tested backend capabilities.
-5. **How does a desktop notification differ from a web push?** The desktop notification is raised by
-   the open tab through the Web Notifications API; web push goes through FCM and a service worker, so
-   it still arrives when the tab is closed.
-6. **What would you change at scale?** Replace the bounded global sweep with per-user Cloud Tasks
-   fan-out, add App Check, and export analytics to BigQuery.
-7. **Where is the cost risk?** Unbounded scans and instance count; both are capped by `SCOPE_LIMIT` and
-   `maxInstances`.
+| Problem | Immediate fallback |
+|---|---|
+| Notification banner does not appear | Check Focus mode, then the padlock icon → Notifications → Allow, then click the test button again |
+| Sign-in pop-up shows your personal email | Cut that segment and start on the dashboard; say "already signed in" |
+| A dose was already marked taken | Use **Skip** then **Undo** on another dose; the counter still moves |
+| Vault is empty | **Load sample data** on the dashboard, wait for the toast, then continue |
+| Sweep says "A sweep just ran" | Wait 20 seconds and click again, or show the run history already on screen |
+| Website is down mid-recording | Switch to `npm run emulators` + `npm run dev`, same clicks, say "local emulator suite" |
+| Running long | Drop the Settings walk in M2, then the Logging entry in M3. Never cut the architecture or the stock guard |
 
 ---
 
 ## Recording settings
 
-* 1920×1080, 30 fps, system audio muted, voice-over recorded separately and aligned in editing.
-* Zoom the browser to 110–125 % so text is legible on a projector.
-* Use a cursor highlight tool if available; otherwise move the pointer deliberately and pause on each
-  clicked element.
-* Add lower-third labels ("Member 1 — Frontend & Hosting") when each speaker takes over.
-* Keep the final file under the submission limit (typically 200–500 MB); 1080p H.264 at ~4 Mbps for
-  10 minutes is roughly 300 MB.
+- 1920×1080, 30 fps, system audio muted, voice recorded separately and aligned in editing.
+- Zoom the browser to 110–125 % so the text survives a projector.
+- Lower-third label at each cut: "Member 1, Frontend, Hosting and Architecture",
+  "Member 2, Data Model and Security", "Member 3, Functions and Observability".
+- 1080p H.264 at about 4 Mbps keeps ten minutes near 300 MB.
