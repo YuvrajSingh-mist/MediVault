@@ -18,7 +18,8 @@
     "verify:deployed": "node scripts/verify-deployed.mjs",
     "diagrams": "python3 scripts/generate-diagrams.py",
     "figures": "python3 scripts/generate-figures.py",
-    "report": "cd docs/report && tectonic -X compile main.tex && cp main.pdf MediVault-Report.pdf"
+    "report": "cd docs/report && tectonic -X compile main.tex && cp main.pdf MediVault-Report.pdf",
+    "check:secrets": "node scripts/check-secrets.mjs"
   },
   "dependencies": {
     "firebase": "^11.10.0",

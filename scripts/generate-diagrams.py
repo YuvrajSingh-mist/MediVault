@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -679,10 +680,35 @@ def emit(diagram: Diagram) -> list[str]:
         if result.returncode != 0:
             sys.exit(f"{diagram.name}: {' '.join(args)} failed\n{result.stderr.strip()}")
 
+    strip_embedded_fonts(Path(f"{base}.svg"))
     problems = audit_export(Path(f"{base}.excalidraw"), diagram.zones)
     write_pdf(base)
     print(f"  {diagram.name}: {len(diagram.elements)} elements -> .excalidraw .svg .png .pdf")
     return problems
+
+
+_FONT_STYLE = re.compile(r'<style class="style-fonts">.*?</style>', re.DOTALL)
+
+
+def strip_embedded_fonts(path: Path) -> None:
+    """Drop Excalidraw's base64 @font-face block from an exported SVG.
+
+    The block embeds a whole TTF as base64, which adds about 300 kB to every
+    diagram and, more importantly, makes the file look like it contains binary
+    secrets: long base64 runs match naive credential scanners (GitGuardian
+    flagged the Liberation Sans blob as a Twilio account SID). The layout is
+    computed from font metrics before export, so removing the face only changes
+    the fallback font a viewer picks, not the geometry.
+    """
+    svg = path.read_text(encoding="utf-8")
+    cleaned, count = _FONT_STYLE.subn(
+        '<style class="style-fonts">text{font-family:"Liberation Sans",Helvetica,Arial,sans-serif}</style>',
+        svg,
+        count=1,
+    )
+    if count == 0 or cleaned == svg:
+        return
+    path.write_text(cleaned, encoding="utf-8")
 
 
 def write_pdf(base: Path) -> None:
