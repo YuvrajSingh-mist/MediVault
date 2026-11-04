@@ -4,7 +4,6 @@ import { db, PROJECT_ID, USE_EMULATORS } from '../lib/firebase'
 import { useAuth } from '../context/AuthProvider'
 import { useToast } from '../context/ToastProvider'
 import { api, errorMessage } from '../lib/api'
-import { enableWebPush } from '../lib/notifications'
 import {
   alertEnabled,
   alertPermission,
@@ -59,11 +58,6 @@ const PREF_LABELS: Array<{ key: keyof NotificationPrefs; label: string; descript
     description: 'One email per sweep listing what is due.',
   },
   {
-    key: 'push',
-    label: 'Browser & mobile push',
-    description: 'Pop-ups on every device you turn on.',
-  },
-  {
     key: 'dose',
     label: 'Dose reminders',
     description: 'A nudge at each scheduled medicine time.',
@@ -91,12 +85,11 @@ export function SettingsPage() {
   const [displayName, setDisplayName] = useState('')
   const [phone, setPhone] = useState('')
   const [saving, setSaving] = useState(false)
-  const [pushBusy, setPushBusy] = useState(false)
-  const [pushMessage, setPushMessage] = useState<string | null>(null)
   const [alertState, setAlertState] = useState<AlertPermission>(() => alertPermission())
   const [alertsEnabled, setAlertsEnabled] = useState(() => alertEnabled())
   const [alertBusy, setAlertBusy] = useState(false)
   const [emailBusy, setEmailBusy] = useState(false)
+  const [emailResult, setEmailResult] = useState<'sent' | 'logged' | 'failed' | null>(null)
 
   useEffect(() => {
     setDisplayName(profile?.displayName || '')
@@ -190,36 +183,18 @@ export function SettingsPage() {
     else toast('Allow notifications in your browser first.', 'error')
   }
 
-  async function enablePush() {
-    setPushBusy(true)
-    setPushMessage(null)
-    try {
-      const result = await enableWebPush()
-      setPushMessage(result.message)
-      if (result.status === 'registered') {
-        await api.registerFcmToken(result.token)
-        toast('This device will now receive push notifications.', 'success')
-      } else if (result.status !== 'unsupported') {
-        toast(result.message, 'error')
-      }
-    } catch (err) {
-      setPushMessage(errorMessage(err))
-      toast(errorMessage(err), 'error')
-    } finally {
-      setPushBusy(false)
-    }
-  }
-
   async function sendTestEmail() {
     setEmailBusy(true)
     try {
       const result = await api.sendTestEmail()
-      toast(
-        result.status === 'sent'
-          ? `Test email sent through ${result.provider}.`
-          : `Email composed and logged via ${result.provider} (no SendGrid key configured).`,
-        'success',
-      )
+      setEmailResult(result.status)
+      if (result.status === 'sent') {
+        toast(`Test email sent to ${profile?.email || 'your address'}.`, 'success')
+      } else if (result.status === 'failed') {
+        toast(`Mail provider refused the message: ${result.error || 'unknown error'}`, 'error')
+      } else {
+        toast('No mail provider is configured, so nothing was delivered.', 'error')
+      }
     } catch (err) {
       toast(errorMessage(err), 'error')
     } finally {
@@ -227,7 +202,6 @@ export function SettingsPage() {
     }
   }
 
-  const registeredDevices = profile?.fcmTokens?.length || 0
   const tzOptions = profile?.timezone
     ? [...new Set([profile.timezone, ...TIMEZONES])]
     : TIMEZONES
@@ -398,47 +372,25 @@ export function SettingsPage() {
           </Card>
 
           <Card>
-            <CardHead title="Push notifications" subtitle={`${registeredDevices} device${registeredDevices === 1 ? '' : 's'} registered`} />
+            <CardHead title="Email delivery" subtitle="Sent by Cloud Functions" />
             <div className="card-pad">
               <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 12 }}>
-                Turn on pop-ups for this browser. Each device is saved on your profile, and dead
-                ones are removed automatically.
-              </p>
-              <Button
-                variant="soft"
-                icon="bell"
-                onClick={enablePush}
-                loading={pushBusy}
-                disabled={USE_EMULATORS}
-              >
-                {USE_EMULATORS ? 'Requires Hosting deployment' : 'Enable on this device'}
-              </Button>
-              {pushMessage ? (
-                <div style={{ marginTop: 12 }}>
-                  <AlertBox tone={USE_EMULATORS ? 'warn' : 'info'}>{pushMessage}</AlertBox>
-                </div>
-              ) : null}
-              {registeredDevices > 0 ? (
-                <div style={{ marginTop: 10 }}>
-                  <Badge tone="brand" dot>
-                    {registeredDevices} active token{registeredDevices === 1 ? '' : 's'}
-                  </Badge>
-                </div>
-              ) : null}
-            </div>
-          </Card>
-
-          <Card>
-            <CardHead title="Email delivery" subtitle="SendGrid via Cloud Functions" />
-            <div className="card-pad">
-              <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 12 }}>
-                With no SendGrid key a message is saved in
-                <span className="mono"> mailOutbox</span> with status <span className="mono">logged</span>{' '}
-                instead of being sent.
+                Reminders go out by email as well as on the page. If no mail provider is configured, the
+                message is saved in <span className="mono">mailOutbox</span> with status{' '}
+                <span className="mono">logged</span> and nothing is delivered.
               </p>
               <Button variant="ghost" icon="mail" onClick={sendTestEmail} loading={emailBusy}>
                 Send a test email
               </Button>
+              {emailResult ? (
+                <div style={{ marginTop: 12 }}>
+                  <Badge tone={emailResult === 'sent' ? 'brand' : 'amber'} dot>
+                    {emailResult === 'sent'
+                      ? 'Last test email delivered'
+                      : 'Last test email only logged, not delivered'}
+                  </Badge>
+                </div>
+              ) : null}
             </div>
           </Card>
 

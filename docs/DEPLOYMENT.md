@@ -127,28 +127,39 @@ bill at the free-tier end.
 
 ### Turning on real email
 
-The project ships without a SendGrid key, so every composed message is written to `mailOutbox` with
-`status: "logged"`. To send for real:
+The project ships with no mail transport, so every composed message is written to `mailOutbox` with
+`status: "logged"` and nothing is delivered. Two transports are supported; set up either one.
+
+**SMTP, for example Gmail.** No domain and no paid account are needed:
+
+```bash
+# Google account > Security > 2-Step Verification > App passwords > Mail
+# Put these in functions/.env, which is git-ignored:
+#   SMTP_HOST=smtp.gmail.com
+#   SMTP_PORT=465
+#   SMTP_SECURE=true
+#   SMTP_USER=you@gmail.com
+#   SMTP_PASS=<the 16-character app password, no spaces>
+#   MAIL_FROM=MediVault <you@gmail.com>
+npm run deploy:functions
+```
+
+**SendGrid**, better once you have a domain:
 
 ```bash
 firebase functions:secrets:set SENDGRID_API_KEY     # Settings > API Keys, Mail Send scope
 firebase functions:secrets:set MAIL_FROM            # a verified sender address
-```
-
-Then redeploy only the functions, since the secrets are mounted as environment variables:
-
-```bash
 npm run deploy:functions
 ```
 
-Verify from the app: *Settings > Send a test email*. The result is the newest document in
-`mailOutbox`; `provider: "sendgrid"` plus `status: "sent"` means SendGrid accepted it, and
-`status: "failed"` stores the provider's reason in `error`. Delete a secret to fall back to the
-outbox without changing code.
+SendGrid wins when both are configured. A new SendGrid account is in "Single Sender Verification"
+mode: `MAIL_FROM` must be the address you verified under *Settings > Sender Authentication*,
+otherwise the API returns a 403 that the function records as a failed delivery.
 
-A new SendGrid account is in "Single Sender Verification" mode: `MAIL_FROM` must be the address you
-verified under *Settings > Sender Authentication*, otherwise the API returns a 403 that the function
-records as a failed delivery.
+Verify from the app: *Settings > Send a test email*. The result is the newest document in
+`mailOutbox`. `status: "sent"` means the provider accepted it, `status: "failed"` stores the
+provider's reason in `error`, and `provider: "outbox"` means no transport was configured and no
+message left the server. Remove the credentials to fall back to the outbox without changing code.
 
 ---
 

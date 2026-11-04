@@ -12,7 +12,7 @@ const { logger } = require('firebase-functions')
 
 const { sweep, dailyDigest } = require('./lib/engine')
 const { requireUser, requireAccess } = require('./lib/access')
-const { sendMail } = require('./lib/mailer')
+const { sendMail, mailProvider } = require('./lib/mailer')
 const { zonedParts, parseHHMM, minutesToHHMM, safeZone } = require('./lib/time')
 
 initializeApp()
@@ -623,7 +623,7 @@ exports.sendTestEmail = onCall({ cors: true }, async (request) => {
   const { uid, profile } = await requireUser(request)
   if (!profile.email) throw new HttpsError('failed-precondition', 'No email on this account.')
 
-  const provider = process.env.SENDGRID_API_KEY ? 'SendGrid' : 'the mail outbox'
+  const provider = mailProvider()
   const result = await sendMail({
     to: profile.email,
     toUid: uid,
@@ -693,7 +693,7 @@ exports.cloudHealth = onCall({ cors: true }, async (request) => {
     bucket,
     firestoreOk,
     latencyMs: Date.now() - startedAt,
-    mailProvider: process.env.SENDGRID_API_KEY ? 'sendgrid' : 'outbox',
+    mailProvider: mailProvider(),
     sweepWindowMinutes: Number(process.env.REMINDER_WINDOW_MINUTES || 5),
     time: new Date().toISOString(),
   }

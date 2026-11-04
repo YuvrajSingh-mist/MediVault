@@ -167,8 +167,9 @@ to open browsers in real time. Inventory arithmetic, reminder generation and ema
 run in \textbf{Cloud Functions (2nd generation)}, which are Cloud Run services underneath. \textbf{Cloud Scheduler} invokes the reminder engine every five minutes
 and the daily digest at 08:00 UTC. Alerts reach the user through four independent channels driven by a
 single Firestore document: an in-app toast, a desktop notification through the Web Notifications API, a
-web push through \textbf{Firebase Cloud Messaging} for closed tabs, and email through \textbf{SendGrid},
-with a Firestore outbox fallback so delivery stays auditable without third-party credentials.
+web push through \textbf{Firebase Cloud Messaging} for closed tabs, and email through \textbf{SendGrid}
+or plain SMTP, with a Firestore outbox fallback so delivery stays auditable without third-party
+credentials.
 
 The system is deployed, and it verifies itself. An automated end-to-end
 suite of \textbf{30 assertions} runs against the Firebase Emulator Suite with no mocks and covers
@@ -380,7 +381,7 @@ Cloud Storage for Firebase & Private object store & \texttt{prescriptions/\{uid\
 Cloud Functions (2nd gen) & All trusted logic & Node.js 22, \texttt{asia-south1}, 256 MiB, \texttt{maxInstances: 10}; 16 functions \\
 Cloud Scheduler & Cron for the sweep and digest & \texttt{sweepReminders} every 5 minutes; \texttt{dailyDigest} \texttt{0 8 * * *}; both \texttt{ENABLED} \\
 Firebase Cloud Messaging & Web push to closed tabs & VAPID key pair; tokens stored on the profile; dead tokens pruned after a failed multicast \\
-SendGrid (REST) & Transactional email & \texttt{SENDGRID\_API\_KEY} and \texttt{MAIL\_FROM} held as function secrets; outbox fallback when absent \\
+SendGrid or SMTP & Transactional email & \texttt{SENDGRID\_API\_KEY} with \texttt{MAIL\_FROM} as function secrets, or \texttt{SMTP\_USER}/\texttt{SMTP\_PASS} in the function environment; outbox fallback when neither is set \\
 Cloud Logging & Structured operational logs & JSON payloads with \texttt{event}, \texttt{durationMs}, \texttt{createdReminders} \\
 Cloud Monitoring & Uptime and error-rate signals & Uptime check on the \texttt{/api} health endpoint \\
 IAM & Least-privilege runtime identity & Functions run as the default compute service account; no public bucket ACLs \\
@@ -608,9 +609,9 @@ collides with itself instead of notifying the patient twice.}
 
 Email and push are attempted only for the channels the user has enabled, and each attempt is recorded on
 the alert document itself
-(\texttt{channels: ['in-app','email:sent']}). If SendGrid is not configured, the composed message is
-written to \texttt{mailOutbox} with status \texttt{logged}, so the pipeline is demonstrable and auditable
-without a third-party account.
+(\texttt{channels: ['in-app','email:sent']}). If no mail transport is configured, the composed message is
+written to \texttt{mailOutbox} with status \texttt{logged} and \texttt{provider: outbox}, so the pipeline
+is demonstrable and auditable without a third-party account, and the app can tell the difference.
 
 \section{Browser and desktop alerts}
 
@@ -746,7 +747,7 @@ reminder. An open dashboard rendered all four without a reload. A second sweep 2
 
 \section{Alert channels}
 
-All four channels read the same Firestore document, which is what keeps them consistent, and each records
+Every channel reads the same Firestore document, which is what keeps them consistent, and each records
 its outcome on that document. The channel that is easiest to get wrong is the desktop notification,
 because browsers require a gesture before granting permission and a visible tab should not also raise an
 operating-system popup. Permission is requested automatically on the first visit after sign-in, with a
@@ -769,12 +770,12 @@ each row. Stock and expiry appear only when they need a decision, as a single li
 
 MediVault shows that a useful clinical tool can run on managed cloud primitives without anyone operating
 a server. Authentication is delegated to Firebase Authentication, authorisation to declarative security
-rules, scheduling to Cloud Scheduler, delivery to FCM and SendGrid, and observability to Cloud Logging.
+rules, scheduling to Cloud Scheduler, delivery to FCM, SendGrid or SMTP, and observability to Cloud Logging.
 What remains in the project's own code is the part that is easy to get wrong: doses are planned in the
 patient's timezone, the inventory counter survives concurrent taps, and an alert fires once per period
 because its document identifier is fixed in advance.
 
-The system is deployed at \appurl, uses ten Google Cloud services plus SendGrid for email, and checks
+The system is deployed at \appurl, uses ten Google Cloud services plus a mail provider for email, and checks
 itself with 30 assertions against real emulated services. The scheduled engine completes in about 300 ms
 and the deployment stays inside the perpetual free tier.
 
@@ -791,8 +792,8 @@ and the deployment stays inside the perpetual free tier.
         snapshot but cannot log a dose.
   \item Callables are protected by authentication and validation, but there is no App Check, so a scripted
         client holding a valid token is limited only by the manual-sweep throttle.
-  \item Email delivery depends on SendGrid. Without it the outbox shows that a message was composed and
-        recorded, not that it arrived.
+  \item Email delivery depends on a configured transport, either SendGrid or SMTP. Without one the outbox
+        shows that a message was composed and recorded, not that it arrived.
   \item Semantic landmarks, labelled controls, live regions and keyboard reachability are in place, but no
         formal accessibility audit has been run.
 \end{enumerate}

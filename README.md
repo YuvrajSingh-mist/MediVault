@@ -19,7 +19,7 @@ make every authoritative decision.
 | 4 | Take, skip, undo | Written by a Firestore transaction, so two taps or two devices cannot move the stock counter twice. |
 | 5 | Warnings | Low stock and expiry alerts, raised by a scheduled sweep and readable in the app. |
 | 6 | Appointments | Doctor visits with a reminder 24 hours ahead. |
-| 7 | Four channels | One alert document drives an in-app toast, a desktop notification, a web push and email, so the channels cannot disagree. |
+| 7 | Alerts that arrive | One alert document drives an in-app toast, a desktop notification and an email, so the channels cannot disagree. Web push is wired in the backend for registered devices. |
 
 Prescription upload and caregiver delegation are deployed and covered by the test suite, but are not
 reachable from the interface. The report explains that trade-off in §4.5.
@@ -135,24 +135,41 @@ Every variable is documented in [`.env.example`](.env.example) and
 | `VITE_FIREBASE_*` | `.env.local` / `.env.production` | Web SDK config from `firebase apps:sdkconfig web`. Public by design: access is controlled by Auth and rules, not by hiding these. |
 | `VITE_FIREBASE_VAPID_KEY` | same | Optional. Without it the app uses in-app and desktop alerts only. |
 | `VITE_USE_EMULATORS` | same | `true` on localhost, `false` in the deployed build. |
-| `SENDGRID_API_KEY` | Functions secret | Optional. Without it, composed email is written to `mailOutbox` with status `logged`. |
-| `MAIL_FROM` | Functions secret | Verified SendGrid sender. |
+| `SENDGRID_API_KEY` | Functions secret | Optional. SendGrid transport. |
+| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` | `functions/.env` | Optional. SMTP transport, works with a Gmail app password. |
+| `MAIL_FROM` | Functions secret | Sender address. Required for SendGrid, optional for SMTP (defaults to the SMTP user). |
 | `APP_URL` | `functions/.env` | Public URL used in email links. |
+
+Email needs **one** transport. Choose whichever you can set up fastest:
+
+**Gmail over SMTP** (free, no domain, no signup):
+
+```bash
+# Google account > Security > 2-Step Verification > App passwords > Mail
+# then paste the 16-character password, with no spaces, into functions/.env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=you@gmail.com
+SMTP_PASS=abcdefghijklmnop
+MAIL_FROM=MediVault <you@gmail.com>
+```
+
+**SendGrid** (better for a custom domain):
 
 ```bash
 firebase functions:secrets:set SENDGRID_API_KEY
 firebase functions:secrets:set MAIL_FROM
 ```
 
-Both values come from the SendGrid dashboard. Create an API key under *Settings > API Keys* with
-"Restricted" access and Mail Send permission, then verify a single sender under
-*Settings > Sender Authentication*. `MAIL_FROM` must be that verified address.
+Create the key under *Settings > API Keys* with "Restricted" access and Mail Send permission, then
+verify a sender under *Settings > Sender Authentication*. `MAIL_FROM` must be that verified address.
 
-With the secrets set, reminders are emailed; without them the same message is written to
-`mailOutbox` with `status: "logged"` and nothing leaves the machine. To confirm real delivery, sign
-in, open *Settings*, press *Send a test email*, then read the newest `mailOutbox` document:
-`provider: "sendgrid"` and `status: "sent"` means SendGrid accepted it, and `status: "failed"`
-carries the provider's own reason in `error`.
+With either transport configured, reminders are emailed. With neither, the same message is written to
+`mailOutbox` with `status: "logged"` and nothing leaves the server. To check, sign in, open *Settings*,
+press *Send a test email*, then read the newest `mailOutbox` document: `status: "sent"` means the
+provider accepted it, `status: "failed"` carries the provider's own reason in `error`, and
+`provider: "outbox"` means no transport was configured.
 
 ## Deploy to Google Cloud
 

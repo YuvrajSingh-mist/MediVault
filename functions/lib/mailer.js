@@ -6,54 +6,117 @@ const { logger } = require('firebase-functions')
 /**
  * Email delivery.
  *
- * Uses SendGrid when SENDGRID_API_KEY + MAIL_FROM are configured. When they are
- * not (class demo, offline emulator) the message is still composed and stored in
- * `mailOutbox` with status "logged" - this keeps the whole reminder pipeline
- * demonstrable, and gives the grader a visible audit trail in Firestore.
+ * Two transports are supported, chosen in this order:
+ *
+ *   1. SendGrid, when SENDGRID_API_KEY + MAIL_FROM are set.
+ *   2. SMTP, when SMTP_HOST + SMTP_USER + SMTP_PASS are set. A Gmail account
+ *      with an app password works here, which is the cheapest way to send real
+ *      mail from a project with no domain of its own.
+ *
+ * When neither is configured (class demo, offline emulator) the message is
+ * still composed and stored in `mailOutbox` with status "logged". That keeps
+ * the reminder pipeline demonstrable, but it also means nothing is delivered,
+ * so the caller can tell the difference from the returned status.
  */
+function smtpConfigured() {
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
+}
+
+function sendgridConfigured() {
+  return Boolean(process.env.SENDGRID_API_KEY && process.env.MAIL_FROM)
+}
+
+/** Which transport a send would use right now. */
+function mailProvider() {
+  if (sendgridConfigured()) return 'sendgrid'
+  if (smtpConfigured()) return 'smtp'
+  return 'outbox'
+}
+
+function fromAddress() {
+  if (process.env.MAIL_FROM) return process.env.MAIL_FROM
+  const name = process.env.MAIL_FROM_NAME || 'MediVault'
+  return `${name} <${process.env.SMTP_USER}>`
+}
+
+async function sendViaSendGrid({ recipient, subject, text, html }) {
+  const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: recipient }] }],
+      from: parseAddress(fromAddress()),
+      subject,
+      content: [
+        { type: 'text/plain', value: text },
+        ...(html ? [{ type: 'text/html', value: html }] : []),
+      ],
+      tracking_settings: { click_tracking: { enable: false } },
+    }),
+  })
+  if (response.ok) return
+  const detail = await response.text()
+  throw new Error(`SendGrid ${response.status}: ${detail}`.slice(0, 400))
+}
+
+/** One pooled transport per container, so a sweep does not reconnect per mail. */
+let smtpTransport = null
+function transport() {
+  if (smtpTransport) return smtpTransport
+  // Loaded lazily: a deployment that only uses SendGrid never pays for it.
+  const nodemailer = require('nodemailer')
+  const port = Number(process.env.SMTP_PORT || 465)
+  smtpTransport = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port,
+    secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  })
+  return smtpTransport
+}
+
+async function sendViaSmtp({ recipient, subject, text, html }) {
+  await transport().sendMail({
+    from: fromAddress(),
+    to: recipient,
+    subject,
+    text,
+    ...(html ? { html } : {}),
+  })
+}
+
 async function sendMail({ to, toUid, subject, text, html, tag = 'reminder' }) {
-  const apiKey = process.env.SENDGRID_API_KEY
-  const from = process.env.MAIL_FROM
   const recipient = (to || '').trim()
+  const provider = mailProvider()
 
   let status = 'logged'
-  let provider = 'outbox'
   let error = null
 
-  if (apiKey && from && recipient) {
+  if (provider === 'sendgrid' && recipient) {
     try {
-      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          personalizations: [{ to: [{ email: recipient }] }],
-          from: parseAddress(from),
-          subject,
-          content: [
-            { type: 'text/plain', value: text },
-            ...(html ? [{ type: 'text/html', value: html }] : []),
-          ],
-          tracking_settings: { click_tracking: { enable: false } },
-        }),
-      })
-      provider = 'sendgrid'
-      status = response.ok ? 'sent' : 'failed'
-      if (!response.ok) {
-        const detail = await response.text()
-        error = `SendGrid ${response.status}: ${detail}`.slice(0, 400)
-      }
+      await sendViaSendGrid({ recipient, subject, text, html })
+      status = 'sent'
     } catch (err) {
       status = 'failed'
-      provider = 'sendgrid'
+      error = String(err && err.message ? err.message : err)
+    }
+  } else if (provider === 'smtp' && recipient) {
+    try {
+      await sendViaSmtp({ recipient, subject, text, html })
+      status = 'sent'
+    } catch (err) {
+      status = 'failed'
       error = String(err && err.message ? err.message : err)
     }
   }
 
   if (status === 'failed') {
-    logger.error('email.delivery_failed', { to: recipient, error })
+    logger.error('email.delivery_failed', { to: recipient, provider, error })
+  } else if (status === 'logged') {
+    logger.warn('email.not_sent_no_provider', { to: recipient })
   }
 
   try {
@@ -111,4 +174,4 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;')
 }
 
-module.exports = { sendMail, wrapHtml }
+module.exports = { sendMail, wrapHtml, mailProvider }

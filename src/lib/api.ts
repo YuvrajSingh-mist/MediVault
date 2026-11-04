@@ -42,7 +42,10 @@ export const api = {
   registerFcmToken: (token: string, remove = false) =>
     call<{ registered: boolean }>('registerFcmToken', { token, remove }),
 
-  sendTestEmail: () => call<{ status: string; provider: string }>('sendTestEmail'),
+  sendTestEmail: () =>
+    call<{ status: 'sent' | 'logged' | 'failed'; provider: string; error?: string | null }>(
+      'sendTestEmail',
+    ),
 
   cloudHealth: () => call<CloudHealth>('cloudHealth'),
 }

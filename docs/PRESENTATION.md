@@ -118,7 +118,7 @@ not read the diagram box by box.*
 > the logic that has to be authoritative. Logging a dose is a Firestore transaction, so two taps or two
 > devices cannot decrement stock twice. Cloud Scheduler calls a sweep every five minutes. It checks due
 > doses, stock, expiry and appointments, writes one reminder document per event, and fans that document
-> out to four channels.
+> out to every channel the user has enabled: the page, the desktop and email.
 >
 > That document is the workflow: one write to Firestore, and every open tab shows it through a live
 > listener."
@@ -187,7 +187,7 @@ two seconds.]
 [Go back to **Dashboard**.]
 
 > "That is the patient surface. Member 2 will show how the data behind it is protected, and how one
-> alert becomes four channels."
+> alert reaches the page, the desktop and the inbox."
 
 *Stop recording. Start Member 2's block on slide 6.*
 
@@ -220,7 +220,7 @@ Talking points:
 | 4:40 | Firebase console → Firestore → `medicines` | Open one document, point at `userId`, `times`, `remainingTablets`. |
 | 5:00 | Firebase console → Firestore → Rules | Scroll to the `medicines` block, point at the create rule and the `isSelf` check. |
 | 5:25 | App → **Medicines** | Show the **Low stock** filter, then the refill threshold field on a medicine. |
-| 5:50 | App → **Settings → Notifications** | Walk the six toggles: email, push, dose, low stock, expiry, appointments. |
+| 5:50 | App → **Settings → Notifications** | Walk the five toggles: email, dose, low stock, expiry, appointments. Then the **Email delivery** card and its test button. |
 | 6:10 | App → **Alerts** | Show the type filters and one alert's channels line. |
 | 6:35 | Firebase console → Firestore → `mailOutbox` | Open the newest document: recipient, subject, status `logged`, and which channels fired. |
 
@@ -284,7 +284,7 @@ Keep these three sentences exact. They are the seams between the recorded blocks
 
 | Cut | Last line |
 |---|---|
-| M1 → M2 | "Member 2 will show how the data behind it is protected, and how one alert becomes four channels." |
+| M1 → M2 | "Member 2 will show how the data behind it is protected, and how one alert reaches the page, the desktop and the inbox." |
 | M2 → M3 | "Member 3 will show the scheduled side, and what the system reports about itself." |
 | M3 ends | "Thank you. We are happy to take questions." |
 
