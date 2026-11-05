@@ -151,7 +151,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=465
 SMTP_SECURE=true
 SMTP_USER=you@gmail.com
-SMTP_PASS=abcdefghijklmnop
+SMTP_PASS=<the-16-character-app-password>
 MAIL_FROM=MediVault <you@gmail.com>
 ```
 
@@ -170,6 +170,9 @@ With either transport configured, reminders are emailed. With neither, the same 
 press *Send a test email*, then read the newest `mailOutbox` document: `status: "sent"` means the
 provider accepted it, `status: "failed"` carries the provider's own reason in `error`, and
 `provider: "outbox"` means no transport was configured.
+
+Credentials never belong in the repository. Before every push, run `npm run check:secrets`; it scans
+every tracked file for the shapes real providers use and fails if one appears.
 
 ## Deploy to Google Cloud
 

@@ -34,6 +34,8 @@ const PATTERNS = [
   ['Resend key', /\bre_[A-Za-z0-9]{20,}/],
   ['Twilio auth token', /\bTWILIO_AUTH_TOKEN\s*=\s*[0-9a-f]{32}\b/],
   ['Twilio account SID', /\bTWILIO_ACCOUNT_SID\s*=\s*AC[0-9a-f]{32}\b/],
+  ['SMTP password', /\bSMTP_PASS\s*=\s*\S{6,}/],
+  ['Assigned API key', /\b(SENDGRID_API_KEY|MAIL_PASSWORD|GITHUB_TOKEN|AWS_SECRET_ACCESS_KEY|DATABASE_URL)\s*=\s*\S{8,}/],
   ['Firebase private key id', /"private_key_id"\s*:\s*"[0-9a-f]{40}"/],
   ['JSON web token', /\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}/],
 ]
@@ -62,9 +64,16 @@ for (const file of files) {
   }
   if (body.includes('\0')) continue
 
-  for (const [name, pattern] of PATTERNS) {
-    if (pattern.test(body)) flag(file, `looks like a ${name}`)
-  }
+  // Documentation and example files legitimately say `SMTP_PASS=<your-password>`.
+  // Anything that is clearly a placeholder is not a credential.
+  const placeholder = /(<|>|your[::-]|example|placeholder|changeme|xxxx|\$\{|\$[A-Z_]|process\.env|import\.meta)/i
+
+  body.split('\n').forEach((line, index) => {
+    if (placeholder.test(line)) return
+    for (const [name, pattern] of PATTERNS) {
+      if (pattern.test(line)) flag(file, `line ${index + 1} looks like a ${name}`)
+    }
+  })
 }
 
 console.log('')

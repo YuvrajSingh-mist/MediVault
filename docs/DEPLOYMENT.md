@@ -128,7 +128,8 @@ bill at the free-tier end.
 ### Turning on real email
 
 The project ships with no mail transport, so every composed message is written to `mailOutbox` with
-`status: "logged"` and nothing is delivered. Two transports are supported; set up either one.
+`status: "logged"` and nothing is delivered. Two transports are supported; set up either one. The live
+instance runs the Gmail option below.
 
 **SMTP, for example Gmail.** No domain and no paid account are needed:
 

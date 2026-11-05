@@ -1,0 +1,20 @@
+#!/bin/sh
+# Refuse a commit that contains a credential.
+#
+# The repository is public, so a key that reaches a commit is already leaked.
+# scripts/check-secrets.mjs scans every tracked file for the shapes real
+# providers use and for file names that should never be tracked.
+#
+# A tracked copy of this hook lives in .githooks/. Keep the two in sync.
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-commit: node not found, skipping the credential check" >&2
+  exit 0
+fi
+
+if ! node scripts/check-secrets.mjs; then
+  echo "" >&2
+  echo "Commit blocked: a credential is staged." >&2
+  echo "Remove the value, rotate it at the provider, then commit again." >&2
+  exit 1
+fi
