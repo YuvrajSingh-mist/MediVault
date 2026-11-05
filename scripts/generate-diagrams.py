@@ -691,12 +691,12 @@ _FONT_STYLE = re.compile(r'<style class="style-fonts">.*?</style>', re.DOTALL)
 
 
 def strip_embedded_fonts(path: Path) -> None:
-    """Drop Excalidraw's base64 @font-face block from an exported SVG.
+    """Drop Excalidraw's embedded font block from an exported SVG.
 
     The block embeds a whole TTF as base64, which adds about 300 kB to every
     diagram and, more importantly, makes the file look like it contains binary
-    secrets: long base64 runs match naive credential scanners (GitGuardian
-    flagged the Liberation Sans blob as a Twilio account SID). The layout is
+    secrets: long base64 runs match naive credential scanners and GitGuardian
+    flagged the Liberation Sans blob as a Twilio account SID. The layout is
     computed from font metrics before export, so removing the face only changes
     the fallback font a viewer picks, not the geometry.
     """
